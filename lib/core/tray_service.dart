@@ -51,7 +51,11 @@ class TrayService with TrayListener {
 
   String _getTrayIconPath() {
     if (Platform.isWindows) {
-      return 'assets/icons/tray_icon.ico';
+      // 获取当前可执行文件所在的目录
+      final executableDir = File(Platform.resolvedExecutable).parent;
+      // 拼接 asset 的绝对路径：data/flutter_assets/assets/icons/tray_icon.ico
+      final iconPath = '${executableDir.path}\\data\\flutter_assets\\assets\\icons\\tray_icon.ico';
+      return iconPath;
     }
     return 'assets/icons/tray_icon.png';
   }
