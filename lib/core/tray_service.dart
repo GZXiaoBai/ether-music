@@ -25,32 +25,32 @@ class TrayService with TrayListener {
     _isInitialized = true;
     
     // 初始化窗口管理器
-    await windowManager.ensureInitialized();
-    
-    // 设置窗口选项
-    WindowOptions windowOptions = const WindowOptions(
-      size: Size(1200, 800),
-      minimumSize: Size(800, 600),
-      center: true,
-      backgroundColor: Colors.transparent,
-      skipTaskbar: false,
-      titleBarStyle: TitleBarStyle.hidden,
-    );
-    
-    windowManager.waitUntilReadyToShow(windowOptions, () async {
-      await windowManager.show();
-      await windowManager.focus();
-    });
+    try {
+      await windowManager.ensureInitialized();
+      
+      // 设置窗口选项
+      WindowOptions windowOptions = const WindowOptions(
+        size: Size(1200, 800),
+        minimumSize: Size(800, 600),
+        center: true,
+        backgroundColor: Colors.transparent,
+        skipTaskbar: false,
+        titleBarStyle: TitleBarStyle.hidden,
+      );
+      
+      windowManager.waitUntilReadyToShow(windowOptions, () async {
+        await windowManager.show();
+        await windowManager.focus();
+      });
+    } catch (e) {
+      debugPrint('Error initializing window manager: $e');
+    }
     
     _updateTrayMenu();
   }
 
   String _getTrayIconPath() {
-    if (Platform.isMacOS) {
-      return 'assets/icons/tray_icon.png';
-    } else if (Platform.isWindows) {
-      return 'assets/icons/tray_icon.ico';
-    }
+    // 所有平台统一使用 png 图标，tray_manager 支持 png
     return 'assets/icons/tray_icon.png';
   }
 

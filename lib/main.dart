@@ -16,9 +16,13 @@ void main() async {
   // 桌面端初始化系统托盘
   final isDesktop = Platform.isMacOS || Platform.isWindows || Platform.isLinux;
   if (isDesktop) {
-    final trayService = TrayService();
-    await trayService.init();
-    trayService.listenToPlaybackChanges();
+    try {
+      final trayService = TrayService();
+      await trayService.init();
+      trayService.listenToPlaybackChanges();
+    } catch (e) {
+      debugPrint('Error initializing tray service: $e');
+    }
   }
   
   runApp(const ProviderScope(child: EtherApp()));
