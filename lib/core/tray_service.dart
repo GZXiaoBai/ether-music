@@ -50,7 +50,9 @@ class TrayService with TrayListener {
   }
 
   String _getTrayIconPath() {
-    // 所有平台统一使用 png 图标，tray_manager 支持 png
+    if (Platform.isWindows) {
+      return 'assets/icons/tray_icon.ico';
+    }
     return 'assets/icons/tray_icon.png';
   }
 

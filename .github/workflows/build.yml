@@ -59,6 +59,10 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
       
+      - name: Generate Windows Icon
+        run: |
+          magick assets/icons/tray_icon.png -define icon:auto-resize=64,48,32,16 assets/icons/tray_icon.ico
+      
       - name: Build Windows
         run: flutter build windows --release
       
