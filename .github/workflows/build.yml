@@ -72,40 +72,8 @@ jobs:
           name: windows-release
           path: Ether-Music-Windows.zip
 
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libmpv-dev libayatana-appindicator3-dev libsqlite3-dev libglu1-mesa-dev
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-      
-      - name: Install dependencies
-        run: flutter pub get
-      
-      - name: Build Linux
-        run: flutter build linux --release
-      
-      - name: Create tarball
-        run: |
-          cd build/linux/x64/release/bundle
-          tar -czvf ../../../../../Ether-Music-Linux.tar.gz *
-      
-      - name: Upload Linux Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-release
-          path: Ether-Music-Linux.tar.gz
-
   release:
-    needs: [build-macos, build-windows, build-linux]
+    needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
@@ -122,7 +90,6 @@ jobs:
           files: |
             artifacts/macos-release/Ether-Music-macOS.dmg
             artifacts/windows-release/Ether-Music-Windows.zip
-            artifacts/linux-release/Ether-Music-Linux.tar.gz
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
