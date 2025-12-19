@@ -9,8 +9,8 @@ class ApiClient {
   late final Dio _dio;
   final Logger _logger = Logger();
 
-  // API 基础地址 - 使用部署在腾讯云 SCF 的 NeteaseCloudMusicApiEnhanced（中国服务器，解锁可用）
-  static const String defaultBaseUrl = 'https://1302520802-7orxxeln8e.ap-shanghai.tencentscf.com';
+  // API 基础地址 - 使用 Vercel 部署的 API（腾讯云 SCF Node.js 12 不兼容）
+  static const String defaultBaseUrl = 'https://api-enhanced-sandy-nu.vercel.app';
   String _baseUrl = defaultBaseUrl;
 
   String get baseUrl => _baseUrl;
