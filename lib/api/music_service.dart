@@ -100,7 +100,10 @@ class MusicService {
             'id': id,
             'level': tryLevel,
             // 启用多音源解锁（解灰功能）
-            // API Enhanced 会自动从其他平台获取音源
+            'unblock': 'true',
+            // 使用随机中国 IP 绕过地区限制
+            'randomCNIP': 'true',
+            // 指定备用音源
             'source': 'qq,kuwo,kugou,migu',
           },
         );
