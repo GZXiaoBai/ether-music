@@ -87,7 +87,7 @@ class MusicService {
   }
 
   /// 获取歌曲播放 URL
-  /// 会尝试多种音质级别直到获取到可用的 URL
+  /// 会尝试多种音质级别，并启用多音源解锁（QQ/酷狗/酷我/咪咕）
   Future<String?> getSongUrl(int id, {String level = 'standard'}) async {
     // 尝试的音质级别列表（从高到低）
     final levels = ['exhigh', 'higher', 'standard', 'lower'];
@@ -99,6 +99,9 @@ class MusicService {
           queryParameters: {
             'id': id,
             'level': tryLevel,
+            // 启用多音源解锁（解灰功能）
+            // API Enhanced 会自动从其他平台获取音源
+            'source': 'qq,kuwo,kugou,migu',
           },
         );
 
