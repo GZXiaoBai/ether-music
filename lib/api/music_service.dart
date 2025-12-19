@@ -90,7 +90,13 @@ class MusicService {
 
   /// 获取歌曲播放 URL
   /// 优先从网易云获取，失败时自动尝试 GDStudio 备用音源
-  Future<String?> getSongUrl(int id, {String level = 'standard'}) async {
+  /// [songName] 和 [artistName] 用于在其他平台搜索匹配歌曲
+  Future<String?> getSongUrl(
+    int id, {
+    String level = 'standard',
+    String? songName,
+    String? artistName,
+  }) async {
     // 第一步：尝试从网易云获取
     final neteaseUrl = await _getNeteaseUrl(id, level: level);
     if (neteaseUrl != null && neteaseUrl.isNotEmpty) {
@@ -99,6 +105,17 @@ class MusicService {
     
     // 第二步：网易云失败，尝试 GDStudio 备用音源
     debugPrint('⚠️ 网易云 URL 获取失败，尝试备用音源...');
+    
+    // 优先使用歌名搜索匹配（更准确）
+    if (songName != null && songName.isNotEmpty) {
+      final searchUrl = await _getBackupUrlBySearch(songName, artistName);
+      if (searchUrl != null && searchUrl.isNotEmpty) {
+        debugPrint('✅ 备用音源（搜索匹配）获取成功');
+        return searchUrl;
+      }
+    }
+    
+    // 回退到 ID 直接请求
     final backupUrl = await _getBackupUrl(id);
     if (backupUrl != null && backupUrl.isNotEmpty) {
       debugPrint('✅ 备用音源获取成功');
@@ -172,6 +189,69 @@ class MusicService {
         debugPrint('备用音源 $source 获取失败: $e');
         continue;
       }
+    }
+    return null;
+  }
+
+  /// 通过歌名搜索获取备用音源 URL
+  Future<String?> _getBackupUrlBySearch(String songName, String? artistName) async {
+    final sources = ['tencent', 'kugou', 'kuwo', 'migu'];
+    final searchQuery = artistName != null ? '$songName $artistName' : songName;
+    
+    for (final source in sources) {
+      try {
+        // 1. 搜索歌曲
+        final searchResult = await _searchOnPlatform(searchQuery, source);
+        if (searchResult == null) continue;
+        
+        final songId = searchResult['id']?.toString();
+        if (songId == null || songId.isEmpty) continue;
+        
+        // 2. 获取歌曲 URL
+        final s = _crc32(Uri.encodeComponent(songId));
+        final response = await Dio().post(
+          _gdStudioApi,
+          options: Options(
+            contentType: 'application/x-www-form-urlencoded',
+          ),
+          data: 'types=url&id=$songId&source=$source&br=320&s=$s',
+        );
+
+        final data = response.data;
+        if (data is Map && data['url'] != null) {
+          final url = data['url'] as String;
+          if (url.isNotEmpty && url.startsWith('http')) {
+            debugPrint('✅ 从 $source 搜索匹配成功');
+            return url;
+          }
+        }
+      } catch (e) {
+        debugPrint('搜索匹配 $source 失败: $e');
+        continue;
+      }
+    }
+    return null;
+  }
+
+  /// 在指定平台搜索歌曲
+  Future<Map<String, dynamic>?> _searchOnPlatform(String query, String source) async {
+    try {
+      final s = _crc32(query);
+      final response = await Dio().post(
+        _gdStudioApi,
+        options: Options(
+          contentType: 'application/x-www-form-urlencoded',
+        ),
+        data: 'types=search&count=5&source=$source&pages=1&name=${Uri.encodeComponent(query)}&s=$s',
+      );
+
+      final data = response.data;
+      if (data is List && data.isNotEmpty) {
+        // 返回第一个搜索结果
+        return data.first as Map<String, dynamic>;
+      }
+    } catch (e) {
+      debugPrint('搜索 $source 失败: $e');
     }
     return null;
   }

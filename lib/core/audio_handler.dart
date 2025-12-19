@@ -57,7 +57,11 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
     mediaItem.add(_songToMediaItem(song));
     
     // 获取歌曲 URL
-    final url = await _musicService.getSongUrl(song.id);
+    final url = await _musicService.getSongUrl(
+      song.id,
+      songName: song.name,
+      artistName: song.artistName,
+    );
     if (url == null || url.isEmpty) {
       // 无法获取 URL，跳到下一首
       await skipToNext();

@@ -115,7 +115,11 @@ class AudioEngine {
     try {
       // 获取歌曲 URL（会尝试多种音质级别）
       debugPrint('正在获取歌曲 URL: ${song.name} (ID: ${song.id})');
-      final url = await _musicService.getSongUrl(song.id);
+      final url = await _musicService.getSongUrl(
+        song.id,
+        songName: song.name,
+        artistName: song.artistName,
+      );
       
       if (url == null || url.isEmpty) {
         debugPrint('⚠️ 无法获取歌曲 URL: ${song.name} - 可能是VIP歌曲或版权限制');
@@ -179,7 +183,11 @@ class AudioEngine {
       currentSongNotifier.value = song;
       
       try {
-        final url = await _musicService.getSongUrl(song.id);
+        final url = await _musicService.getSongUrl(
+          song.id,
+          songName: song.name,
+          artistName: song.artistName,
+        );
         if (url != null && url.isNotEmpty) {
           await _player.setUrl(url);
           await _player.play();

@@ -82,7 +82,12 @@ class DownloadService extends ChangeNotifier {
 
     try {
       // 获取歌曲 URL
-      final url = await _musicService.getSongUrl(task.song.id, level: task.quality);
+      final url = await _musicService.getSongUrl(
+        task.song.id,
+        level: task.quality,
+        songName: task.song.name,
+        artistName: task.song.artistName,
+      );
       if (url == null || url.isEmpty) {
         task.status = DownloadStatus.failed;
         task.error = '无法获取下载链接';
