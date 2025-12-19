@@ -76,8 +76,39 @@ jobs:
           name: windows-release
           path: Ether-Music-Windows.zip
 
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+      
+      - name: Install dependencies
+        run: flutter pub get
+      
+      - name: Build Android APK
+        run: flutter build apk --release
+      
+      - name: Rename APK
+        run: mv build/app/outputs/flutter-apk/app-release.apk Ether-Music-Android.apk
+      
+      - name: Upload Android Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: Ether-Music-Android.apk
+
   release:
-    needs: [build-macos, build-windows]
+    needs: [build-macos, build-windows, build-android]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
@@ -94,6 +125,7 @@ jobs:
           files: |
             artifacts/macos-release/Ether-Music-macOS.dmg
             artifacts/windows-release/Ether-Music-Windows.zip
+            artifacts/android-release/Ether-Music-Android.apk
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

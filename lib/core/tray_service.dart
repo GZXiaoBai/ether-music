@@ -16,7 +16,18 @@ class TrayService with TrayListener {
   /// 初始化系统托盘
   Future<void> init() async {
     if (_isInitialized) return;
-    if (!Platform.isMacOS && !Platform.isWindows && !Platform.isLinux) return;
+    
+    // Windows 上暂时禁用托盘功能（ico 文件路径问题导致崩溃）
+    // TODO: 后续通过正确打包 ico 文件解决此问题
+    if (Platform.isWindows) {
+      debugPrint('Windows: Tray functionality disabled temporarily');
+      // 只初始化窗口管理器，不初始化托盘
+      await _initWindowManager();
+      _isInitialized = true;
+      return;
+    }
+    
+    if (!Platform.isMacOS && !Platform.isLinux) return;
 
     await trayManager.setIcon(_getTrayIconPath());
     await trayManager.setToolTip('Ether 以太音乐');
@@ -24,7 +35,12 @@ class TrayService with TrayListener {
     trayManager.addListener(this);
     _isInitialized = true;
     
-    // 初始化窗口管理器
+    await _initWindowManager();
+    _updateTrayMenu();
+  }
+
+  /// 初始化窗口管理器
+  Future<void> _initWindowManager() async {
     try {
       await windowManager.ensureInitialized();
       
@@ -45,8 +61,6 @@ class TrayService with TrayListener {
     } catch (e) {
       debugPrint('Error initializing window manager: $e');
     }
-    
-    _updateTrayMenu();
   }
 
   String _getTrayIconPath() {
