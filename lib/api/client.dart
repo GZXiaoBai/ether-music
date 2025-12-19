@@ -9,8 +9,8 @@ class ApiClient {
   late final Dio _dio;
   final Logger _logger = Logger();
 
-  // API 基础地址 - 使用部署在 Vercel 的 NeteaseCloudMusicApiEnhanced
-  static const String defaultBaseUrl = 'https://api-enhanced-sandy-nu.vercel.app';
+  // API 基础地址 - 使用部署在腾讯云 SCF 的 NeteaseCloudMusicApiEnhanced（中国服务器，解锁可用）
+  static const String defaultBaseUrl = 'https://1302520802-7orxxeln8e.ap-shanghai.tencentscf.com';
   String _baseUrl = defaultBaseUrl;
 
   String get baseUrl => _baseUrl;
