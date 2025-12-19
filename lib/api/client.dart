@@ -9,8 +9,8 @@ class ApiClient {
   late final Dio _dio;
   final Logger _logger = Logger();
 
-  // API 基础地址 - 默认使用本地部署的 NeteaseCloudMusicApiEnhanced
-  static const String defaultBaseUrl = 'http://localhost:3000';
+  // API 基础地址 - 使用部署在 Vercel 的 NeteaseCloudMusicApiEnhanced
+  static const String defaultBaseUrl = 'https://api-enhanced-sandy-nu.vercel.app';
   String _baseUrl = defaultBaseUrl;
 
   String get baseUrl => _baseUrl;
