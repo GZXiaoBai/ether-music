@@ -86,7 +86,7 @@ class DownloadService extends ChangeNotifier {
         task.song.id,
         level: task.quality,
         songName: task.song.name,
-        artistName: task.song.artistName,
+        artistName: task.song.artistNames,
       );
       if (url == null || url.isEmpty) {
         task.status = DownloadStatus.failed;

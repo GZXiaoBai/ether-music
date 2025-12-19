@@ -118,7 +118,7 @@ class AudioEngine {
       final url = await _musicService.getSongUrl(
         song.id,
         songName: song.name,
-        artistName: song.artistName,
+        artistName: song.artistNames,
       );
       
       if (url == null || url.isEmpty) {
@@ -186,7 +186,7 @@ class AudioEngine {
         final url = await _musicService.getSongUrl(
           song.id,
           songName: song.name,
-          artistName: song.artistName,
+          artistName: song.artistNames,
         );
         if (url != null && url.isNotEmpty) {
           await _player.setUrl(url);
