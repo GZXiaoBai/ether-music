@@ -11,6 +11,7 @@ enum DownloadStatus {
   downloading,
   completed,
   failed,
+  canceled,
 }
 
 /// 下载任务
@@ -41,7 +42,7 @@ class DownloadService extends ChangeNotifier {
   final MusicService _musicService = MusicService();
   final Dio _dio = Dio();
   final List<DownloadTask> _tasks = [];
-  final Map<int, CancelToken> _cancelTokens = {};
+  final Map<String, CancelToken> _cancelTokens = {};
 
   List<DownloadTask> get tasks => List.unmodifiable(_tasks);
   List<DownloadTask> get activeTasks => _tasks.where((t) => 
@@ -51,7 +52,6 @@ class DownloadService extends ChangeNotifier {
 
   /// 获取下载目录
   Future<Directory> get downloadDirectory async {
-    // 使用应用文档目录，在沙盒环境下也能正常工作
     final appDir = await getApplicationDocumentsDirectory();
     final musicDir = Directory('${appDir.path}/Downloads');
     
@@ -62,9 +62,12 @@ class DownloadService extends ChangeNotifier {
   }
 
   /// 添加下载任务
-  Future<void> download(Song song, {String quality = 'exhigh'}) async {
-    // 检查是否已在下载
-    if (_tasks.any((t) => t.song.id == song.id && 
+  Future<void> download(Song song, {String quality = '320k'}) async {
+    // 使用 id + platform 作为唯一标识
+    final songKey = '${song.platform}_${song.id}';
+    
+    if (_tasks.any((t) => 
+        '${t.song.platform}_${t.song.id}' == songKey && 
         (t.status == DownloadStatus.pending || t.status == DownloadStatus.downloading))) {
       return;
     }
@@ -81,36 +84,24 @@ class DownloadService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 获取歌曲 URL
-      final url = await _musicService.getSongUrl(
-        task.song.id,
-        level: task.quality,
-        songName: task.song.name,
-        artistName: task.song.artistNames,
-      );
-      if (url == null || url.isEmpty) {
-        task.status = DownloadStatus.failed;
-        task.error = '无法获取下载链接';
-        notifyListeners();
-        return;
-      }
+      // TuneHub API 直接返回 URL
+      final url = _musicService.getSongUrl(task.song, br: task.quality);
 
       // 确定文件扩展名
       String extension = 'mp3';
-      if (url.contains('.flac')) {
+      if (task.quality == 'flac' || task.quality == 'flac24bit') {
         extension = 'flac';
-      } else if (url.contains('.m4a')) {
-        extension = 'm4a';
       }
 
       // 生成文件名
-      final safeFileName = _sanitizeFileName('${task.song.artistNames} - ${task.song.name}');
+      final safeFileName = _sanitizeFileName('${task.song.artist} - ${task.song.name}');
       final dir = await downloadDirectory;
       final filePath = '${dir.path}/$safeFileName.$extension';
 
       // 创建取消令牌
+      final songKey = '${task.song.platform}_${task.song.id}';
       final cancelToken = CancelToken();
-      _cancelTokens[task.song.id] = cancelToken;
+      _cancelTokens[songKey] = cancelToken;
 
       // 下载文件
       await _dio.download(
@@ -128,24 +119,26 @@ class DownloadService extends ChangeNotifier {
       task.status = DownloadStatus.completed;
       task.filePath = filePath;
       task.progress = 1.0;
-      _cancelTokens.remove(task.song.id);
+      _cancelTokens.remove(songKey);
       notifyListeners();
 
     } catch (e) {
+      final songKey = '${task.song.platform}_${task.song.id}';
       if (e is DioException && e.type == DioExceptionType.cancel) {
         _tasks.remove(task);
       } else {
         task.status = DownloadStatus.failed;
         task.error = e.toString();
       }
-      _cancelTokens.remove(task.song.id);
+      _cancelTokens.remove(songKey);
       notifyListeners();
     }
   }
 
   /// 取消下载
   void cancel(DownloadTask task) {
-    final cancelToken = _cancelTokens[task.song.id];
+    final songKey = '${task.song.platform}_${task.song.id}';
+    final cancelToken = _cancelTokens[songKey];
     if (cancelToken != null) {
       cancelToken.cancel();
     }
@@ -172,7 +165,7 @@ class DownloadService extends ChangeNotifier {
   Future<bool> isDownloaded(Song song) async {
     final dir = await downloadDirectory;
     final files = await dir.list().toList();
-    final songName = _sanitizeFileName('${song.artistNames} - ${song.name}');
+    final songName = _sanitizeFileName('${song.artist} - ${song.name}');
     
     return files.any((f) => f.path.contains(songName));
   }
@@ -181,7 +174,7 @@ class DownloadService extends ChangeNotifier {
   Future<String?> getDownloadedPath(Song song) async {
     final dir = await downloadDirectory;
     final files = await dir.list().toList();
-    final songName = _sanitizeFileName('${song.artistNames} - ${song.name}');
+    final songName = _sanitizeFileName('${song.artist} - ${song.name}');
     
     for (final file in files) {
       if (file.path.contains(songName)) {
@@ -227,12 +220,13 @@ class DownloadProgressIndicator extends StatelessWidget {
           ),
         );
       case DownloadStatus.completed:
-        return Icon(
+        return const Icon(
           Icons.check_circle_rounded,
           color: Colors.green,
           size: 20,
         );
       case DownloadStatus.failed:
+      case DownloadStatus.canceled:
         return Icon(
           Icons.error_rounded,
           color: theme.colorScheme.error,

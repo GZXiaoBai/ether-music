@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ether_music/api/models/song.dart';
-import 'package:ether_music/theme/glassmorphism.dart';
 
 /// 歌曲卡片组件
 class SongCard extends StatelessWidget {
@@ -84,29 +83,9 @@ class SongCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        if (song.isVip)
-                          Container(
-                            margin: const EdgeInsets.only(right: 6),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 1,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              'VIP',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.amber,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
                         Expanded(
                           child: Text(
-                            '${song.artistNames} · ${song.album?.name ?? '未知专辑'}',
+                            '${song.artist} · ${song.album}',
                             style: theme.textTheme.bodySmall,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,

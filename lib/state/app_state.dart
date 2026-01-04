@@ -44,28 +44,16 @@ class SearchNotifier extends StateNotifier<AsyncValue<List<Song>>> {
   }
 }
 
-/// 推荐歌单 Provider
-final recommendPlaylistsProvider = FutureProvider<List<Playlist>>((ref) async {
+/// 热门排行榜 Provider
+final hotToplistsProvider = FutureProvider<List<Toplist>>((ref) async {
   final service = ref.read(musicServiceProvider);
-  return service.getRecommendPlaylists(limit: 10);
+  return service.getHotToplists();
 });
 
-/// 推荐新歌 Provider
-final newSongsProvider = FutureProvider<List<Song>>((ref) async {
+/// 热门歌曲 Provider
+final hotSongsProvider = FutureProvider<List<Song>>((ref) async {
   final service = ref.read(musicServiceProvider);
-  return service.getNewSongs(limit: 10);
-});
-
-/// 热门搜索 Provider
-final hotSearchProvider = FutureProvider<List<String>>((ref) async {
-  final service = ref.read(musicServiceProvider);
-  return service.getHotSearch();
-});
-
-/// 排行榜 Provider
-final toplistProvider = FutureProvider<List<Playlist>>((ref) async {
-  final service = ref.read(musicServiceProvider);
-  return service.getToplist();
+  return service.getHotSongs(limit: 20);
 });
 
 /// Theme Mode 枚举

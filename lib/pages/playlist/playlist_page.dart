@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -5,20 +6,24 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ether_music/api/models/song.dart';
 import 'package:ether_music/api/music_service.dart';
 import 'package:ether_music/state/player_state.dart';
-import 'package:ether_music/components/song_card.dart';
-import 'package:ether_music/theme/glassmorphism.dart';
+import 'package:ether_music/theme/app_theme.dart';
+import 'package:ether_music/core/local_storage_service.dart';
+import 'package:ether_music/core/download_service.dart';
+import 'package:ether_music/components/desktop_song_row.dart';
 
-/// 歌单详情页
+/// 桌面端风格歌单详情页
 class PlaylistPage extends ConsumerStatefulWidget {
-  final int playlistId;
+  final String playlistId;
   final String? playlistName;
   final String? coverUrl;
+  final String source;
 
   const PlaylistPage({
     super.key,
     required this.playlistId,
     this.playlistName,
     this.coverUrl,
+    this.source = 'netease',
   });
 
   @override
@@ -44,7 +49,18 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
     });
 
     try {
-      final songs = await _musicService.getPlaylistSongs(widget.playlistId);
+      List<Song> songs;
+      if (widget.source == 'local') {
+        songs = LocalStorageService().getPlaylistSongs(widget.playlistId);
+        // 模拟一点延迟，体验更统一？或者不用
+        await Future.delayed(const Duration(milliseconds: 200)); 
+      } else {
+        songs = await _musicService.getPlaylistSongs(
+          widget.playlistId,
+          source: widget.source,
+        );
+      }
+      
       if (mounted) {
         setState(() {
           _songs = songs;
@@ -67,67 +83,135 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
     final currentSong = ref.watch(currentSongProvider).valueOrNull;
 
     return Scaffold(
+      backgroundColor: Colors.transparent, // 由 DesktopLayout 控制背景
       body: CustomScrollView(
         slivers: [
-          // 头部
-          SliverAppBar(
-            expandedHeight: 280,
-            pinned: true,
-            stretch: true,
-            backgroundColor: theme.scaffoldBackgroundColor,
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                widget.playlistName ?? '歌单',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  shadows: [
-                    Shadow(color: Colors.black54, blurRadius: 8),
-                  ],
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              background: Stack(
-                fit: StackFit.expand,
+          // 头部信息区
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 封面图
-                  if (widget.coverUrl != null)
-                    CachedNetworkImage(
-                      imageUrl: widget.coverUrl!,
-                      fit: BoxFit.cover,
-                    )
-                  else
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            theme.colorScheme.primary,
-                            theme.colorScheme.secondary,
+                  // 封面
+                  Container(
+                    width: 200,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: widget.coverUrl != null
+                          ? CachedNetworkImage(
+                              imageUrl: widget.coverUrl!,
+                              fit: BoxFit.cover,
+                            )
+                          : Container(
+                              color: theme.colorScheme.surfaceContainerHighest,
+                              child: const Icon(Icons.music_note_rounded, size: 64),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 32),
+                  
+                  // 信息
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppTheme.appleMusicRed),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '歌单',
+                            style: TextStyle(
+                              color: AppTheme.appleMusicRed,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          widget.playlistName ?? '歌单详情',
+                          style: theme.textTheme.displaySmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 12),
+                        // 创建人信息等 (暂无数据，模拟)
+                        Row(
+                          children: [
+                            const CircleAvatar(
+                              radius: 12,
+                              backgroundImage: NetworkImage('https://github.com/shadcn.png'),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Music Admin',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: AppTheme.appleMusicRed,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '创建 · ${_songs.length} 首歌曲',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                              ),
+                            ),
                           ],
                         ),
-                      ),
-                      child: const Icon(
-                        Icons.queue_music_rounded,
-                        size: 100,
-                        color: Colors.white54,
-                      ),
-                    ),
-                  // 渐变遮罩
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          theme.scaffoldBackgroundColor.withOpacity(0.8),
-                          theme.scaffoldBackgroundColor,
-                        ],
-                        stops: const [0.0, 0.7, 1.0],
-                      ),
+                        const SizedBox(height: 24),
+                        // 操作按钮
+                        Row(
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: _songs.isEmpty ? null : () {
+                                ref.read(audioEngineProvider).setQueue(_songs, startIndex: 0);
+                              },
+                              icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+                              label: const Text('播放全部', style: TextStyle(color: Colors.white)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.appleMusicRed,
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            OutlinedButton.icon(
+                              onPressed: () {}, // TODO: Favorite
+                              icon: const Icon(Icons.favorite_border_rounded),
+                              label: const Text('收藏'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                             IconButton(
+                              onPressed: () {},
+                              icon: const Icon(Icons.more_horiz_rounded),
+                              style: IconButton.styleFrom(
+                                backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -135,64 +219,29 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
             ),
           ),
 
-          // 歌曲数量和操作按钮
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!_isLoading)
-                    Text(
-                      '${_songs.length} 首歌曲',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                    ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: GlassmorphicButton(
-                          onPressed: () {
-                            if (_songs.isNotEmpty) {
-                              ref.read(audioEngineProvider).setQueue(_songs);
-                            }
-                          },
-                          borderRadius: 12,
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.play_arrow_rounded, color: Colors.white),
-                              SizedBox(width: 8),
-                              Text('播放全部', style: TextStyle(color: Colors.white)),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      GlassmorphicIconButton(
-                        icon: Icons.shuffle_rounded,
-                        onPressed: () {
-                          if (_songs.isNotEmpty) {
-                            final shuffled = List<Song>.from(_songs)..shuffle();
-                            ref.read(audioEngineProvider).setQueue(shuffled);
-                          }
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      GlassmorphicIconButton(
-                        icon: Icons.favorite_border_rounded,
-                        onPressed: () {
-                          // TODO: 收藏歌单
-                        },
-                      ),
-                    ],
-                  ),
-                ],
+          // 表格头
+          if (_songs.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 50), // 序号宽
+                    const SizedBox(width: 56), // 封面宽 + 间距
+                    Expanded(flex: 4, child: Text('标题', style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)))),
+                    Expanded(flex: 3, child: Text('歌手', style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)))),
+                    Expanded(flex: 3, child: Text('专辑', style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)))),
+                    SizedBox(width: 60, child: Text('时长', style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)), textAlign: TextAlign.right)),
+                  ],
+                ),
               ),
-            ).animate().fadeIn(duration: 300.ms),
-          ),
+            ),
+             SliverToBoxAdapter(
+               child: Padding(
+                 padding: const EdgeInsets.symmetric(horizontal: 32),
+                 child: Divider(color: theme.colorScheme.onSurface.withValues(alpha: 0.1)),
+               ),
+             ),
 
           // 歌曲列表
           if (_isLoading)
@@ -201,43 +250,7 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
             )
           else if (_error != null)
             SliverFillRemaining(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-                    const SizedBox(height: 16),
-                    Text('加载失败: $_error'),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _loadPlaylistData,
-                      child: const Text('重试'),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else if (_songs.isEmpty)
-            SliverFillRemaining(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.music_off_rounded,
-                      size: 64,
-                      color: theme.colorScheme.onSurface.withOpacity(0.3),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '歌单是空的',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.5),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              child: Center(child: Text('加载失败: $_error')),
             )
           else
             SliverList(
@@ -245,26 +258,25 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
                 (context, index) {
                   final song = _songs[index];
                   final isPlaying = currentSong?.id == song.id;
-
-                  return SongCard(
+                  
+                  return DesktopSongRow(
+                    index: index + 1,
                     song: song,
-                    index: index,
                     isPlaying: isPlaying,
                     onTap: () {
                       ref.read(audioEngineProvider).setQueue(_songs, startIndex: index);
                     },
-                  ).animate().fadeIn(duration: 200.ms, delay: (index * 20).ms);
+                  );
                 },
                 childCount: _songs.length,
               ),
             ),
 
-          // 底部间距
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 100),
-          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
     );
   }
 }
+
+

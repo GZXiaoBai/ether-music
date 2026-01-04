@@ -1,103 +1,205 @@
 import 'package:dio/dio.dart';
-import 'package:logger/logger.dart';
+import 'package:flutter/foundation.dart';
 
-/// API 客户端封装
+/// TuneHub API 客户端
+/// API 文档: https://music-dl.sayqz.com
 class ApiClient {
   static final ApiClient _instance = ApiClient._internal();
   factory ApiClient() => _instance;
 
   late final Dio _dio;
-  final Logger _logger = Logger();
 
-  // API 基础地址 - 使用 Vercel 部署的 API（腾讯云 SCF Node.js 12 不兼容）
-  static const String defaultBaseUrl = 'https://api-enhanced-sandy-nu.vercel.app';
-  String _baseUrl = defaultBaseUrl;
-
-  String get baseUrl => _baseUrl;
-
-  set baseUrl(String url) {
-    _baseUrl = url;
-    _dio.options.baseUrl = url;
-  }
+  // TuneHub API 基础地址
+  static const String baseUrl = 'https://music-dl.sayqz.com/api/';
 
   ApiClient._internal() {
     _dio = Dio(
       BaseOptions(
-        baseUrl: _baseUrl,
-        connectTimeout: const Duration(seconds: 10),
+        baseUrl: baseUrl,
+        connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 30),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        // 允许重定向，TuneHub 的 url/pic 接口会重定向
+        followRedirects: false,
+        validateStatus: (status) => status != null && status < 400,
       ),
     );
 
-    // 添加日志拦截器
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) {
-          _logger.d('REQUEST[${options.method}] => PATH: ${options.path}');
-          return handler.next(options);
-        },
-        onResponse: (response, handler) {
-          _logger.d(
-              'RESPONSE[${response.statusCode}] => PATH: ${response.requestOptions.path}');
-          return handler.next(response);
-        },
-        onError: (error, handler) {
-          _logger.e(
-              'ERROR[${error.response?.statusCode}] => PATH: ${error.requestOptions.path}');
-          return handler.next(error);
-        },
-      ),
+    // 调试模式下启用日志
+    if (kDebugMode) {
+      _dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            debugPrint('🌐 REQUEST: ${options.uri}');
+            return handler.next(options);
+          },
+          onResponse: (response, handler) {
+            debugPrint('✅ RESPONSE [${response.statusCode}]: ${response.requestOptions.uri}');
+            return handler.next(response);
+          },
+          onError: (error, handler) {
+            debugPrint('❌ ERROR [${error.response?.statusCode}]: ${error.requestOptions.uri}');
+            return handler.next(error);
+          },
+        ),
+      );
+    }
+  }
+
+  /// 获取 Dio 实例（用于直接访问）
+  Dio get dio => _dio;
+
+  /// 通用 GET 请求
+  Future<Response> get({
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    return await _dio.get(
+      '',
+      queryParameters: queryParameters,
+      options: options,
     );
   }
 
-  /// GET 请求
-  Future<Response> get(
-    String path, {
-    Map<String, dynamic>? queryParameters,
-    Options? options,
+  /// 聚合搜索 - 同时搜索多个平台
+  Future<Map<String, dynamic>> aggregateSearch({
+    required String keyword,
+    int limit = 20,
+    int page = 1,
+  }) async {
+    final response = await get(
+      queryParameters: {
+        'type': 'aggregateSearch',
+        'keyword': keyword,
+        'limit': limit,
+        'page': page,
+      },
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// 单平台搜索
+  Future<Map<String, dynamic>> search({
+    required String source,
+    required String keyword,
+    int limit = 20,
+    int page = 1,
+  }) async {
+    final response = await get(
+      queryParameters: {
+        'source': source,
+        'type': 'search',
+        'keyword': keyword,
+        'limit': limit,
+        'page': page,
+      },
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// 获取歌曲信息
+  Future<Map<String, dynamic>> getSongInfo({
+    required String source,
+    required String id,
+  }) async {
+    final response = await get(
+      queryParameters: {
+        'source': source,
+        'id': id,
+        'type': 'info',
+      },
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// 获取歌曲播放 URL（直接返回重定向地址）
+  String getSongUrl({
+    required String source,
+    required String id,
+    String br = '999k', // 尝试请求最高音质
+  }) {
+    return '$baseUrl?source=$source&id=$id&type=url&br=$br';
+  }
+
+  /// 获取歌曲封面 URL
+  String getCoverUrl({
+    required String source,
+    required String id,
+  }) {
+    return '$baseUrl?source=$source&id=$id&type=pic';
+  }
+
+  /// 获取歌词 URL
+  String getLyricUrl({
+    required String source,
+    required String id,
+  }) {
+    return '$baseUrl?source=$source&id=$id&type=lrc';
+  }
+
+  /// 获取歌词内容
+  Future<String?> getLyric({
+    required String source,
+    required String id,
   }) async {
     try {
-      return await _dio.get(
-        path,
-        queryParameters: queryParameters,
-        options: options,
+      final response = await _dio.get(
+        '',
+        queryParameters: {
+          'source': source,
+          'id': id,
+          'type': 'lrc',
+        },
+        options: Options(
+          responseType: ResponseType.plain,
+        ),
       );
+      return response.data as String?;
     } catch (e) {
-      _logger.e('GET request failed: $e');
-      rethrow;
+      debugPrint('获取歌词失败: $e');
+      return null;
     }
   }
 
-  /// POST 请求
-  Future<Response> post(
-    String path, {
-    dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
+  /// 获取排行榜列表
+  Future<Map<String, dynamic>> getToplists({
+    required String source,
   }) async {
-    try {
-      return await _dio.post(
-        path,
-        data: data,
-        queryParameters: queryParameters,
-        options: options,
-      );
-    } catch (e) {
-      _logger.e('POST request failed: $e');
-      rethrow;
-    }
+    final response = await get(
+      queryParameters: {
+        'source': source,
+        'type': 'toplists',
+      },
+    );
+    return response.data as Map<String, dynamic>;
   }
 
-  /// 设置 Cookie（用于登录状态）
-  void setCookie(String cookie) {
-    _dio.options.headers['Cookie'] = cookie;
+  /// 获取排行榜详情
+  Future<Map<String, dynamic>> getToplist({
+    required String source,
+    required String id,
+  }) async {
+    final response = await get(
+      queryParameters: {
+        'source': source,
+        'id': id,
+        'type': 'toplist',
+      },
+    );
+    return response.data as Map<String, dynamic>;
   }
 
-  /// 清除 Cookie
-  void clearCookie() {
-    _dio.options.headers.remove('Cookie');
+  /// 获取歌单详情
+  Future<Map<String, dynamic>> getPlaylist({
+    required String source,
+    required String id,
+  }) async {
+    final response = await get(
+      queryParameters: {
+        'source': source,
+        'id': id,
+        'type': 'playlist',
+      },
+    );
+    return response.data as Map<String, dynamic>;
   }
 }

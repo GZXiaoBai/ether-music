@@ -1,184 +1,185 @@
-/// 歌曲数据模型
+/// 歌曲数据模型 - 适配 TuneHub API
 class Song {
-  final int id;
+  final String id;
   final String name;
-  final List<Artist> artists;
-  final Album? album;
-  final int duration; // 毫秒
+  final String artist;
+  final String album;
+  final String platform; // netease, qq, kuwo
   final String? coverUrl;
-  final String? url;
-  final bool isVip;
+  final String? audioUrl;
+  final String? lrcUrl;
+  final int duration; // 毫秒
 
   Song({
     required this.id,
     required this.name,
-    required this.artists,
-    this.album,
-    required this.duration,
+    required this.artist,
+    required this.album,
+    required this.platform,
     this.coverUrl,
-    this.url,
-    this.isVip = false,
+    this.audioUrl,
+    this.lrcUrl,
+    this.duration = 0,
   });
 
-  /// 获取艺术家名称（多个用 / 分隔）
-  String get artistNames => artists.map((a) => a.name).join(' / ');
+  /// 获取艺术家名称（兼容旧代码）
+  String get artistNames => artist;
 
   /// 获取格式化的时长
   String get durationFormatted {
+    if (duration <= 0) return '--:--';
     final minutes = (duration / 1000 / 60).floor();
     final seconds = ((duration / 1000) % 60).floor();
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
-  factory Song.fromJson(Map<String, dynamic> json) {
-    // 处理不同 API 返回格式
+  /// 从 TuneHub 聚合搜索结果解析
+  factory Song.fromTuneHub(Map<String, dynamic> json) {
+    return Song(
+      id: json['id']?.toString() ?? '',
+      name: json['name'] as String? ?? '',
+      artist: json['artist'] as String? ?? '',
+      album: json['album'] as String? ?? '',
+      platform: json['platform'] as String? ?? 'netease',
+      coverUrl: json['pic'] as String?,
+      audioUrl: json['url'] as String?,
+      lrcUrl: json['lrc'] as String?,
+    );
+  }
+
+  /// 从旧版网易云 API 解析（兼容性）
+  factory Song.fromNetease(Map<String, dynamic> json) {
     final artistList = json['ar'] ?? json['artists'] ?? [];
     final albumData = json['al'] ?? json['album'];
+    
+    String artistName = '';
+    if (artistList is List && artistList.isNotEmpty) {
+      artistName = artistList.map((a) => a['name'] as String? ?? '').join(' / ');
+    }
 
-    // 本地存储格式使用 coverUrl 直接存储
-    String? coverUrl = json['coverUrl'] as String?;
-    if (coverUrl == null && albumData != null) {
-      coverUrl = albumData['picUrl'] ?? albumData['coverUrl'] as String?;
+    String? coverUrl;
+    String albumName = '';
+    if (albumData is Map) {
+      coverUrl = albumData['picUrl'] as String?;
+      albumName = albumData['name'] as String? ?? '';
     }
 
     return Song(
-      id: json['id'] as int,
-      name: json['name'] as String,
-      artists: (artistList as List)
-          .map((a) => Artist.fromJson(a as Map<String, dynamic>))
-          .toList(),
-      album: albumData != null
-          ? Album.fromJson(albumData as Map<String, dynamic>)
-          : null,
-      duration: json['dt'] ?? json['duration'] ?? 0,
+      id: (json['id'] as int).toString(),
+      name: json['name'] as String? ?? '',
+      artist: artistName,
+      album: albumName,
+      platform: 'netease',
       coverUrl: coverUrl,
-      url: json['url'] as String?,
-      isVip: json['isVip'] == true || (json['fee'] == 1) || (json['privilege']?['fee'] == 1),
+      duration: json['dt'] ?? json['duration'] ?? 0,
+    );
+  }
+
+  /// 从本地存储解析
+  factory Song.fromJson(Map<String, dynamic> json) {
+    // 兼容旧版数据格式
+    if (json.containsKey('artists')) {
+      return Song.fromNetease(json);
+    }
+    
+    return Song(
+      id: json['id']?.toString() ?? '',
+      name: json['name'] as String? ?? '',
+      artist: json['artist'] as String? ?? json['artistNames'] as String? ?? '',
+      album: json['album'] as String? ?? '',
+      platform: json['platform'] as String? ?? 'netease',
+      coverUrl: json['coverUrl'] as String?,
+      audioUrl: json['audioUrl'] as String?,
+      lrcUrl: json['lrcUrl'] as String?,
+      duration: json['duration'] as int? ?? 0,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'artists': artists.map((a) => a.toJson()).toList(),
-        'album': album?.toJson(),
-        'duration': duration,
-        'coverUrl': coverUrl,
-        'url': url,
-        'isVip': isVip,
-      };
+    'id': id,
+    'name': name,
+    'artist': artist,
+    'album': album,
+    'platform': platform,
+    'coverUrl': coverUrl,
+    'audioUrl': audioUrl,
+    'lrcUrl': lrcUrl,
+    'duration': duration,
+  };
 
   Song copyWith({
-    int? id,
+    String? id,
     String? name,
-    List<Artist>? artists,
-    Album? album,
-    int? duration,
+    String? artist,
+    String? album,
+    String? platform,
     String? coverUrl,
-    String? url,
-    bool? isVip,
+    String? audioUrl,
+    String? lrcUrl,
+    int? duration,
   }) {
     return Song(
       id: id ?? this.id,
       name: name ?? this.name,
-      artists: artists ?? this.artists,
+      artist: artist ?? this.artist,
       album: album ?? this.album,
-      duration: duration ?? this.duration,
+      platform: platform ?? this.platform,
       coverUrl: coverUrl ?? this.coverUrl,
-      url: url ?? this.url,
-      isVip: isVip ?? this.isVip,
-    );
-  }
-}
-
-/// 艺术家数据模型
-class Artist {
-  final int id;
-  final String name;
-  final String? avatarUrl;
-  final int? albumCount;
-  final int? musicCount;
-
-  Artist({
-    required this.id,
-    required this.name,
-    this.avatarUrl,
-    this.albumCount,
-    this.musicCount,
-  });
-
-  factory Artist.fromJson(Map<String, dynamic> json) {
-    return Artist(
-      id: json['id'] as int,
-      name: json['name'] as String,
-      avatarUrl: json['picUrl'] ?? json['img1v1Url'] as String?,
-      albumCount: json['albumSize'] as int?,
-      musicCount: json['musicSize'] as int?,
+      audioUrl: audioUrl ?? this.audioUrl,
+      lrcUrl: lrcUrl ?? this.lrcUrl,
+      duration: duration ?? this.duration,
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'avatarUrl': avatarUrl,
-        'albumCount': albumCount,
-        'musicCount': musicCount,
-      };
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Song &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          platform == other.platform;
+
+  @override
+  int get hashCode => id.hashCode ^ platform.hashCode;
 }
 
-/// 专辑数据模型
-class Album {
-  final int id;
+/// 排行榜数据模型
+class Toplist {
+  final String id;
   final String name;
   final String? coverUrl;
-  final Artist? artist;
-  final int? publishTime;
-  final int? songCount;
+  final String? updateFrequency;
+  final String source;
 
-  Album({
+  Toplist({
     required this.id,
     required this.name,
     this.coverUrl,
-    this.artist,
-    this.publishTime,
-    this.songCount,
+    this.updateFrequency,
+    required this.source,
   });
 
-  factory Album.fromJson(Map<String, dynamic> json) {
-    final artistData = json['artist'] ?? json['artists']?.first;
-
-    return Album(
-      id: json['id'] as int,
-      name: json['name'] as String,
-      coverUrl: json['picUrl'] ?? json['blurPicUrl'] as String?,
-      artist: artistData != null
-          ? Artist.fromJson(artistData as Map<String, dynamic>)
-          : null,
-      publishTime: json['publishTime'] as int?,
-      songCount: json['size'] as int?,
+  factory Toplist.fromTuneHub(Map<String, dynamic> json, String source) {
+    return Toplist(
+      id: json['id']?.toString() ?? '',
+      name: json['name'] as String? ?? '',
+      coverUrl: json['pic'] as String?,
+      updateFrequency: json['updateFrequency'] as String?,
+      source: source,
     );
   }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'coverUrl': coverUrl,
-        'artist': artist?.toJson(),
-        'publishTime': publishTime,
-        'songCount': songCount,
-      };
 }
 
 /// 歌单数据模型
 class Playlist {
-  final int id;
+  final String id;
   final String name;
   final String? coverUrl;
   final String? description;
   final int? trackCount;
   final int? playCount;
   final String? creatorName;
-  final String? creatorAvatarUrl;
+  final String source;
 
   Playlist({
     required this.id,
@@ -188,37 +189,38 @@ class Playlist {
     this.trackCount,
     this.playCount,
     this.creatorName,
-    this.creatorAvatarUrl,
+    required this.source,
   });
 
-  factory Playlist.fromJson(Map<String, dynamic> json) {
-    final creator = json['creator'] as Map<String, dynamic>?;
-
+  factory Playlist.fromTuneHub(Map<String, dynamic> json, String source) {
     return Playlist(
-      id: json['id'] as int,
-      name: json['name'] as String,
-      coverUrl: json['coverImgUrl'] ?? json['picUrl'] as String?,
+      id: json['id']?.toString() ?? '',
+      name: json['name'] as String? ?? '',
+      coverUrl: json['pic'] ?? json['coverImgUrl'] as String?,
       description: json['description'] as String?,
       trackCount: json['trackCount'] as int?,
-      playCount: json['playCount'] ?? json['playcount'] as int?,
-      creatorName: creator?['nickname'] as String?,
-      creatorAvatarUrl: creator?['avatarUrl'] as String?,
+      playCount: json['playCount'] as int?,
+      creatorName: json['creator']?['nickname'] as String?,
+      source: source,
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'coverUrl': coverUrl,
-        'description': description,
-        'trackCount': trackCount,
-        'playCount': playCount,
-        'creatorName': creatorName,
-        'creatorAvatarUrl': creatorAvatarUrl,
-      };
+  /// 兼容旧版 fromJson
+  factory Playlist.fromJson(Map<String, dynamic> json) {
+    return Playlist(
+      id: (json['id'] ?? '').toString(),
+      name: json['name'] as String? ?? '',
+      coverUrl: json['coverImgUrl'] ?? json['picUrl'] ?? json['coverUrl'] as String?,
+      description: json['description'] as String?,
+      trackCount: json['trackCount'] as int?,
+      playCount: json['playCount'] ?? json['playcount'] as int?,
+      creatorName: json['creator']?['nickname'] as String?,
+      source: json['source'] as String? ?? 'netease',
+    );
+  }
 }
 
-/// 歌词数据模型
+/// 歌词行数据模型
 class LyricLine {
   final Duration time;
   final String text;
@@ -229,4 +231,34 @@ class LyricLine {
     required this.text,
     this.translation,
   });
+}
+
+/// 解析 LRC 歌词
+List<LyricLine> parseLrc(String lrcContent) {
+  final lines = <LyricLine>[];
+  final regex = RegExp(r'\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)');
+  
+  for (final line in lrcContent.split('\n')) {
+    final match = regex.firstMatch(line);
+    if (match != null) {
+      final minutes = int.parse(match.group(1)!);
+      final seconds = int.parse(match.group(2)!);
+      final milliseconds = int.parse(match.group(3)!.padRight(3, '0'));
+      final text = match.group(4)?.trim() ?? '';
+      
+      if (text.isNotEmpty) {
+        lines.add(LyricLine(
+          time: Duration(
+            minutes: minutes,
+            seconds: seconds,
+            milliseconds: milliseconds,
+          ),
+          text: text,
+        ));
+      }
+    }
+  }
+  
+  lines.sort((a, b) => a.time.compareTo(b.time));
+  return lines;
 }

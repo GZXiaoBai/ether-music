@@ -82,7 +82,7 @@ class SongActionSheet extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        song.artistNames,
+                        song.artist,
                         style: theme.textTheme.bodySmall,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -160,7 +160,7 @@ class SongActionSheet extends ConsumerWidget {
             onTap: () async {
               Navigator.pop(context);
               await Share.share(
-                '🎵 ${song.name} - ${song.artistNames}\n来自 Ether 以太音乐',
+                '🎵 ${song.name} - ${song.artist}\n来自 Ether 以太音乐',
                 subject: song.name,
               );
             },
@@ -220,17 +220,17 @@ class SongActionSheet extends ConsumerWidget {
   Future<void> _copyLyrics(BuildContext context, Song song) async {
     try {
       final musicService = MusicService();
-      final lyrics = await musicService.getLyric(song.id);
+      final lyrics = await musicService.getLyricText(song);
       
       if (lyrics == null || lyrics.isEmpty) {
-        _showSnackBar(context, '暂无歌词');
+        if (context.mounted) _showSnackBar(context, '暂无歌词');
         return;
       }
 
       await Clipboard.setData(ClipboardData(text: lyrics));
-      _showSnackBar(context, '歌词已复制到剪贴板');
+      if (context.mounted) _showSnackBar(context, '歌词已复制到剪贴板');
     } catch (e) {
-      _showSnackBar(context, '获取歌词失败');
+      if (context.mounted) _showSnackBar(context, '获取歌词失败');
     }
   }
 }

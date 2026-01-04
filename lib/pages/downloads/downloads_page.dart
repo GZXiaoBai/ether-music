@@ -1,276 +1,264 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ether_music/core/download_service.dart';
-import 'package:ether_music/theme/glassmorphism.dart';
+import 'package:ether_music/theme/app_theme.dart';
 
-/// 下载管理页面
-class DownloadsPage extends StatefulWidget {
+class DownloadsPage extends ConsumerStatefulWidget {
   const DownloadsPage({super.key});
 
   @override
-  State<DownloadsPage> createState() => _DownloadsPageState();
+  ConsumerState<DownloadsPage> createState() => _DownloadsPageState();
 }
 
-class _DownloadsPageState extends State<DownloadsPage> {
+class _DownloadsPageState extends ConsumerState<DownloadsPage> {
   final DownloadService _downloadService = DownloadService();
 
   @override
   void initState() {
     super.initState();
-    _downloadService.addListener(_onDownloadUpdate);
+    _downloadService.addListener(_update);
   }
 
   @override
   void dispose() {
-    _downloadService.removeListener(_onDownloadUpdate);
+    _downloadService.removeListener(_update);
     super.dispose();
   }
 
-  void _onDownloadUpdate() {
+  void _update() {
     if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final tasks = _downloadService.tasks;
+    // tasks is a List<DownloadTask>
+    final tasks = _downloadService.tasks.reversed.toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('下载管理'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          if (tasks.any((t) => t.status == DownloadStatus.completed))
-            TextButton(
-              onPressed: () {
-                _downloadService.clearCompleted();
-              },
-              child: const Text('清除已完成'),
+    if (tasks.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.download_done_rounded, size: 60, color: theme.colorScheme.onSurface.withValues(alpha: 0.2)),
+            const SizedBox(height: 16),
+            Text('暂无下载任务', style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.5))),
+          ],
+        ),
+      );
+    }
+
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(32, 24, 32, 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                 Text(
+                  '下载管理', 
+                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)
+                 ),
+                 TextButton.icon(
+                   onPressed: () {
+                     _downloadService.clearCompleted();
+                   },
+                   icon: const Icon(Icons.delete_sweep_rounded, size: 18),
+                   label: const Text('清理已完成'),
+                 ),
+              ],
             ),
-        ],
-      ),
-      body: tasks.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.download_for_offline_rounded,
-                    size: 80,
-                    color: theme.colorScheme.onSurface.withOpacity(0.2),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '暂无下载任务',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.5),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '点击歌曲的下载按钮开始下载',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.4),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: tasks.length,
-              itemBuilder: (context, index) {
-                final task = tasks[index];
-                return _DownloadTaskCard(
-                  task: task,
-                  onCancel: () => _downloadService.cancel(task),
-                  onRetry: () => _downloadService.retry(task),
-                ).animate().fadeIn(duration: 200.ms, delay: (index * 30).ms);
-              },
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(32, 8, 32, 8),
+            child: Row(
+              children: [
+                const SizedBox(width: 56), // 封面
+                Expanded(flex: 4, child: Text('标题', style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)))),
+                Expanded(flex: 3, child: Text('进度/状态', style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)))),
+                SizedBox(width: 100, child: Text('操作', style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)), textAlign: TextAlign.right)),
+              ],
             ),
+          ),
+        ),
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final task = tasks[index];
+              return _DesktopDownloadRow(task: task);
+            },
+            childCount: tasks.length,
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 40)),
+      ],
     );
   }
 }
 
-/// 下载任务卡片
-class _DownloadTaskCard extends StatelessWidget {
+class _DesktopDownloadRow extends StatefulWidget {
   final DownloadTask task;
-  final VoidCallback onCancel;
-  final VoidCallback onRetry;
 
-  const _DownloadTaskCard({
-    required this.task,
-    required this.onCancel,
-    required this.onRetry,
-  });
+  const _DesktopDownloadRow({required this.task});
+
+  @override
+  State<_DesktopDownloadRow> createState() => _DesktopDownloadRowState();
+}
+
+class _DesktopDownloadRowState extends State<_DesktopDownloadRow> {
+  bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final song = task.song;
+    final task = widget.task;
 
-    return GlassmorphicContainer(
-      margin: const EdgeInsets.only(bottom: 12),
-      borderRadius: 16,
-      blur: 10,
-      opacity: 0.1,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+        color: _isHovered 
+              ? theme.colorScheme.onSurface.withValues(alpha: 0.05) 
+              : Colors.transparent,
         child: Row(
           children: [
             // 封面
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: song.coverUrl != null
-                  ? Image.network(
-                      song.coverUrl!,
-                      width: 56,
-                      height: 56,
-                      fit: BoxFit.cover,
-                    )
-                  : Container(
-                      width: 56,
-                      height: 56,
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      child: const Icon(Icons.music_note_rounded),
-                    ),
+              borderRadius: BorderRadius.circular(4),
+              child: task.song.coverUrl != null
+                 ? CachedNetworkImage(
+                     imageUrl: task.song.coverUrl!,
+                     width: 40, height: 40,
+                     fit: BoxFit.cover,
+                   )
+                 : Container(
+                    width: 40, height: 40,
+                    color: theme.colorScheme.surfaceContainerHighest,
+                   ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             
-            // 信息
+            // 标题 & 歌手
             Expanded(
+              flex: 4,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    song.name,
-                    style: theme.textTheme.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    task.song.name,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
                   Text(
-                    song.artistNames,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    task.song.artist,
+                    style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
-                  
-                  // 进度条
-                  if (task.status == DownloadStatus.downloading)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: task.progress,
-                        minHeight: 4,
-                        backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
-                      ),
-                    )
-                  else
-                    Row(
-                      children: [
-                        _buildStatusIcon(),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            _getStatusText(),
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: _getStatusColor(theme),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
                 ],
               ),
             ),
             
+            // 进度条
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (task.status == DownloadStatus.downloading) ...[
+                     LinearProgressIndicator(
+                       value: task.progress, 
+                       backgroundColor: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+                       color: AppTheme.appleMusicRed,
+                       minHeight: 4,
+                       borderRadius: BorderRadius.circular(2),
+                     ),
+                     const SizedBox(height: 4),
+                     Text(
+                       '${(task.progress * 100).toStringAsFixed(1)}%',
+                       style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                     ),
+                  ] else ...[
+                     _buildStatusBadge(task.status),
+                  ]
+                ],
+              ),
+            ),
+
             // 操作按钮
-            _buildActionButton(context),
+            SizedBox(
+              width: 100,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (task.status == DownloadStatus.failed)
+                    IconButton(
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      tooltip: '重试',
+                      onPressed: () => DownloadService().retry(task),
+                    ),
+                  if (task.status == DownloadStatus.completed)
+                     IconButton(
+                       icon: const Icon(Icons.folder_open_rounded, size: 18),
+                       tooltip: '打开文件',
+                       onPressed: () {
+                         // TODO: Open folder
+                       },
+                     ),
+                  IconButton(
+                    icon: Icon(Icons.close_rounded, size: 18, color: theme.colorScheme.error),
+                    tooltip: '删除',
+                    onPressed: () => DownloadService().cancel(task),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatusIcon() {
-    switch (task.status) {
-      case DownloadStatus.pending:
-        return const Icon(Icons.hourglass_empty_rounded, size: 14, color: Colors.grey);
-      case DownloadStatus.downloading:
-        return const Icon(Icons.downloading_rounded, size: 14, color: Colors.blue);
-      case DownloadStatus.completed:
-        return const Icon(Icons.check_circle_rounded, size: 14, color: Colors.green);
-      case DownloadStatus.failed:
-        return const Icon(Icons.error_rounded, size: 14, color: Colors.red);
-    }
-  }
+  Widget _buildStatusBadge(DownloadStatus status) {
+    String text = '';
+    Color color = Colors.grey;
+    IconData? icon;
 
-  String _getStatusText() {
-    switch (task.status) {
+    switch (status) {
       case DownloadStatus.pending:
-        return '等待中';
+        text = '等待中';
+        icon = Icons.hourglass_empty_rounded;
+        break;
       case DownloadStatus.downloading:
-        return '${(task.progress * 100).toStringAsFixed(0)}%';
+        text = '下载中';
+        break;
       case DownloadStatus.completed:
-        return '已完成';
+        text = '已完成';
+        color = Colors.green;
+        icon = Icons.check_circle_rounded;
+        break;
       case DownloadStatus.failed:
-        return task.error ?? '下载失败';
+        text = '失败';
+        color = Colors.red;
+        icon = Icons.error_outline_rounded;
+        break;
+      case DownloadStatus.canceled:
+        text = '已取消';
+        color = Colors.orange;
+        icon = Icons.cancel_outlined;
+        break;
     }
-  }
 
-  Color _getStatusColor(ThemeData theme) {
-    switch (task.status) {
-      case DownloadStatus.pending:
-        return Colors.grey;
-      case DownloadStatus.downloading:
-        return theme.colorScheme.primary;
-      case DownloadStatus.completed:
-        return Colors.green;
-      case DownloadStatus.failed:
-        return theme.colorScheme.error;
-    }
-  }
-
-  Widget _buildActionButton(BuildContext context) {
-    switch (task.status) {
-      case DownloadStatus.pending:
-      case DownloadStatus.downloading:
-        return IconButton(
-          icon: const Icon(Icons.close_rounded),
-          onPressed: onCancel,
-          tooltip: '取消',
-        );
-      case DownloadStatus.failed:
-        return IconButton(
-          icon: const Icon(Icons.refresh_rounded),
-          onPressed: onRetry,
-          tooltip: '重试',
-        );
-      case DownloadStatus.completed:
-        return IconButton(
-          icon: const Icon(Icons.folder_open_rounded),
-          onPressed: () async {
-            if (task.filePath != null) {
-              final file = File(task.filePath!);
-              final dir = file.parent.path;
-              
-              if (Platform.isMacOS) {
-                await Process.run('open', [dir]);
-              } else if (Platform.isWindows) {
-                await Process.run('explorer', [dir]);
-              } else if (Platform.isLinux) {
-                await Process.run('xdg-open', [dir]);
-              }
-            }
-          },
-          tooltip: '打开位置',
-        );
-    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (icon != null) ...[Icon(icon, size: 14, color: color), const SizedBox(width: 4)],
+        Text(text, style: TextStyle(color: color, fontSize: 12)),
+      ],
+    );
   }
 }

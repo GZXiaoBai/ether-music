@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:ether_music/theme/glassmorphism.dart';
+import 'package:ether_music/theme/app_theme.dart';
 
 /// 音质选项
 enum AudioQuality {
@@ -25,7 +24,7 @@ final downloadQualityProvider = StateProvider<AudioQuality>((ref) => AudioQualit
 final autoPlayProvider = StateProvider<bool>((ref) => true);
 final savePlaylistProvider = StateProvider<bool>((ref) => true);
 
-/// 设置页面
+/// 设置页面 - 桌面端风格适配
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
@@ -38,156 +37,132 @@ class SettingsPage extends ConsumerWidget {
     final savePlaylist = ref.watch(savePlaylistProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('设置'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // 音质设置
-          _buildSectionTitle(context, '音质设置', Icons.equalizer_rounded),
-          const SizedBox(height: 12),
-          
-          _SettingsCard(
-            title: '在线播放音质',
-            subtitle: '${audioQuality.label} (${audioQuality.bitrate})',
-            icon: audioQuality.icon,
-            onTap: () => _showQualityPicker(
-              context, 
-              ref, 
-              audioQualityProvider, 
-              '选择播放音质',
-            ),
-          ).animate().fadeIn(duration: 300.ms).slideX(begin: -0.1),
-          
-          const SizedBox(height: 8),
-          
-          _SettingsCard(
-            title: '下载音质',
-            subtitle: '${downloadQuality.label} (${downloadQuality.bitrate})',
-            icon: Icons.download_rounded,
-            onTap: () => _showQualityPicker(
-              context, 
-              ref, 
-              downloadQualityProvider, 
-              '选择下载音质',
-            ),
-          ).animate().fadeIn(duration: 300.ms, delay: 50.ms).slideX(begin: -0.1),
-
-          const SizedBox(height: 24),
-
-          // 播放设置
-          _buildSectionTitle(context, '播放设置', Icons.play_circle_outline_rounded),
-          const SizedBox(height: 12),
-
-          _SettingsSwitch(
-            title: '自动播放',
-            subtitle: '打开应用时自动继续上次播放',
-            icon: Icons.play_arrow_rounded,
-            value: autoPlay,
-            onChanged: (v) => ref.read(autoPlayProvider.notifier).state = v,
-          ).animate().fadeIn(duration: 300.ms, delay: 100.ms).slideX(begin: -0.1),
-
-          const SizedBox(height: 8),
-
-          _SettingsSwitch(
-            title: '保存播放列表',
-            subtitle: '退出时保存当前播放队列',
-            icon: Icons.queue_music_rounded,
-            value: savePlaylist,
-            onChanged: (v) => ref.read(savePlaylistProvider.notifier).state = v,
-          ).animate().fadeIn(duration: 300.ms, delay: 150.ms).slideX(begin: -0.1),
-
-          const SizedBox(height: 24),
-
-          // 存储设置
-          _buildSectionTitle(context, '存储', Icons.folder_rounded),
-          const SizedBox(height: 12),
-
-          _SettingsCard(
-            title: '下载位置',
-            subtitle: '~/Music/Ether',
-            icon: Icons.folder_open_rounded,
-            onTap: () {
-              // TODO: 选择下载目录
-            },
-          ).animate().fadeIn(duration: 300.ms, delay: 200.ms).slideX(begin: -0.1),
-
-          const SizedBox(height: 8),
-
-          _SettingsCard(
-            title: '清除缓存',
-            subtitle: '清除图片和音频缓存',
-            icon: Icons.cleaning_services_rounded,
-            onTap: () => _showClearCacheDialog(context),
-          ).animate().fadeIn(duration: 300.ms, delay: 250.ms).slideX(begin: -0.1),
-
-          const SizedBox(height: 24),
-
-          // 关于
-          _buildSectionTitle(context, '关于', Icons.info_outline_rounded),
-          const SizedBox(height: 12),
-
-          _SettingsCard(
-            title: 'Ether 以太音乐',
-            subtitle: 'Version 1.0.0',
-            icon: Icons.music_note_rounded,
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    theme.colorScheme.primary,
-                    theme.colorScheme.secondary,
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'Open Source',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+      backgroundColor: Colors.transparent, // 由 DesktopLayout 提供背景
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(32, 40, 32, 24),
+                  child: Text(
+                    '设置',
+                    style: theme.textTheme.headlineLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
-            ),
-            onTap: () {
-              // TODO: 打开关于页面
-            },
-          ).animate().fadeIn(duration: 300.ms, delay: 300.ms).slideX(begin: -0.1),
+              
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _SectionHeader(title: '音质体验', icon: Icons.equalizer_rounded),
+                    _SettingsGroup(
+                      children: [
+                        _SettingsTile(
+                          title: '在线播放音质',
+                          subtitle: '${audioQuality.label} (${audioQuality.bitrate})',
+                          icon: audioQuality.icon,
+                          onTap: () => _showQualityPicker(context, ref, audioQualityProvider, '选择播放音质'),
+                        ),
+                        const _Divider(),
+                        _SettingsTile(
+                          title: '下载音质',
+                          subtitle: '${downloadQuality.label} (${downloadQuality.bitrate})',
+                          icon: Icons.download_rounded,
+                          onTap: () => _showQualityPicker(context, ref, downloadQualityProvider, '选择下载音质'),
+                        ),
+                      ],
+                    ),
 
-          const SizedBox(height: 8),
+                    const SizedBox(height: 32),
+                    _SectionHeader(title: '播放习惯', icon: Icons.play_circle_outline_rounded),
+                    _SettingsGroup(
+                      children: [
+                        _SettingsSwitchTile(
+                          title: '自动播放',
+                          subtitle: '打开应用时自动继续上次播放',
+                          icon: Icons.play_arrow_rounded,
+                          value: autoPlay,
+                          onChanged: (v) => ref.read(autoPlayProvider.notifier).state = v,
+                        ),
+                        const _Divider(),
+                        _SettingsSwitchTile(
+                          title: '保存播放列表',
+                          subtitle: '退出时保存当前播放队列',
+                          icon: Icons.queue_music_rounded,
+                          value: savePlaylist,
+                          onChanged: (v) => ref.read(savePlaylistProvider.notifier).state = v,
+                        ),
+                      ],
+                    ),
 
-          _SettingsCard(
-            title: '快捷键说明',
-            subtitle: '查看键盘快捷键',
-            icon: Icons.keyboard_rounded,
-            onTap: () => _showShortcutsDialog(context),
-          ).animate().fadeIn(duration: 300.ms, delay: 350.ms).slideX(begin: -0.1),
+                    const SizedBox(height: 32),
+                    _SectionHeader(title: '存储与缓存', icon: Icons.folder_rounded),
+                    _SettingsGroup(
+                      children: [
+                        _SettingsTile(
+                          title: '下载位置',
+                          subtitle: '~/Music/Ether',
+                          icon: Icons.folder_open_rounded,
+                          onTap: () {},
+                        ),
+                        const _Divider(),
+                        _SettingsTile(
+                          title: '清除缓存',
+                          subtitle: '释放存储空间',
+                          icon: Icons.cleaning_services_rounded,
+                          onTap: () => _showClearCacheDialog(context),
+                        ),
+                      ],
+                    ),
 
-          const SizedBox(height: 100),
-        ],
-      ),
-    );
-  }
+                    const SizedBox(height: 32),
+                    _SectionHeader(title: '关于', icon: Icons.info_outline_rounded),
+                    _SettingsGroup(
+                      children: [
+                        _SettingsTile(
+                          title: 'Ether 以太音乐',
+                          subtitle: 'Version 1.0.0 (Beta)',
+                          icon: Icons.music_note_rounded,
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.appleMusicRed.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Open Source',
+                              style: TextStyle(
+                                color: AppTheme.appleMusicRed,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          onTap: () {},
+                        ),
+                         const _Divider(),
+                        _SettingsTile(
+                          title: '快捷键',
+                          subtitle: '查看所有键盘快捷键',
+                          icon: Icons.keyboard_rounded,
+                          onTap: () => _showShortcutsDialog(context),
+                        ),
+                      ],
+                    ),
 
-  Widget _buildSectionTitle(BuildContext context, String title, IconData icon) {
-    final theme = Theme.of(context);
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: theme.colorScheme.primary),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.primary,
+                    const SizedBox(height: 60),
+                  ]),
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -197,48 +172,34 @@ class SettingsPage extends ConsumerWidget {
     StateProvider<AudioQuality> provider,
     String title,
   ) {
-    final theme = Theme.of(context);
+    // ... Picker logic same as before but styled differently if needed ...
+    // adapting to a simple dialog for desktop Feel
     final current = ref.read(provider);
+    final theme = Theme.of(context);
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      backgroundColor: theme.scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ...AudioQuality.values.map((quality) => ListTile(
-              leading: Icon(
-                quality.icon,
-                color: current == quality 
-                    ? theme.colorScheme.primary 
-                    : theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
-              title: Text(quality.label),
-              subtitle: Text(quality.bitrate),
-              trailing: current == quality 
-                  ? Icon(Icons.check_circle_rounded, color: theme.colorScheme.primary)
-                  : null,
-              onTap: () {
-                ref.read(provider.notifier).state = quality;
+          children: AudioQuality.values.map((q) => RadioListTile<AudioQuality>(
+            title: Text(q.label),
+            subtitle: Text(q.bitrate),
+            value: q,
+            groupValue: current,
+            onChanged: (v) {
+              if (v != null) {
+                ref.read(provider.notifier).state = v;
                 Navigator.pop(context);
-              },
-            )),
-            const SizedBox(height: 20),
-          ],
+              }
+            },
+            activeColor: AppTheme.appleMusicRed,
+          )).toList(),
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+        ],
       ),
     );
   }
@@ -248,88 +209,83 @@ class SettingsPage extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('清除缓存'),
-        content: const Text('确定要清除所有缓存吗？这将删除已缓存的图片和音频文件。'),
+        content: const Text('确定要清除所有图片和音频缓存吗？'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
           TextButton(
             onPressed: () {
-              // TODO: 清除缓存
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('缓存已清除')),
-              );
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('缓存已清除')));
             },
-            child: const Text('确定'),
+            child: const Text('确定', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
   }
-
+  
   void _showShortcutsDialog(BuildContext context) {
-    final shortcuts = [
-      ('Space', '播放 / 暂停'),
-      ('←', '快退 5 秒'),
-      ('→', '快进 5 秒'),
-      ('↑', '增加音量'),
-      ('↓', '减少音量'),
-      ('N', '下一首'),
-      ('P', '上一首'),
-      ('M', '静音'),
-      ('L', '切换循环模式'),
-      ('1-9', '跳转到对应进度'),
-    ];
-
-    final theme = Theme.of(context);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.keyboard_rounded, color: theme.colorScheme.primary),
-            const SizedBox(width: 8),
-            const Text('键盘快捷键'),
-          ],
-        ),
-        content: SizedBox(
-          width: 300,
-          child: Column(
+      final shortcuts = [
+        ('Space', '播放 / 暂停'),
+        ('← / →', '快退 / 快进'),
+        ('↑ / ↓', '音量调节'),
+        ('N / P', '下一首 / 上一首'),
+      ];
+      
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('快捷键'),
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             children: shortcuts.map((s) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    width: 60,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      s.$1,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'monospace',
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(child: Text(s.$2)),
+                   Container(
+                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                     decoration: BoxDecoration(
+                       color: Colors.grey.withValues(alpha: 0.2),
+                       borderRadius: BorderRadius.circular(4),
+                     ),
+                     child: Text(s.$1, style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+                   ),
+                   const SizedBox(width: 20),
+                   Text(s.$2),
                 ],
               ),
             )).toList(),
           ),
+           actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('关闭')),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('关闭'),
+      );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final IconData icon;
+
+  const _SectionHeader({required this.title, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, left: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppTheme.appleMusicRed),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppTheme.appleMusicRed,
+            ),
           ),
         ],
       ),
@@ -337,64 +293,61 @@ class SettingsPage extends ConsumerWidget {
   }
 }
 
-/// 设置卡片
-class _SettingsCard extends StatelessWidget {
+class _SettingsGroup extends StatelessWidget {
+  final List<Widget> children;
+
+  const _SettingsGroup({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(children: children),
+    );
+  }
+}
+
+class _SettingsTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
   final Widget? trailing;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
-  const _SettingsCard({
+  const _SettingsTile({
     required this.title,
     required this.subtitle,
     required this.icon,
     this.trailing,
-    this.onTap,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    return GlassmorphicContainer(
-      borderRadius: 16,
-      blur: 10,
-      opacity: 0.1,
-      child: ListTile(
-        leading: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: theme.colorScheme.primary, size: 20),
-        ),
-        title: Text(title),
-        subtitle: Text(
-          subtitle,
-          style: theme.textTheme.bodySmall,
-        ),
-        trailing: trailing ?? Icon(
-          Icons.chevron_right_rounded,
-          color: theme.colorScheme.onSurface.withOpacity(0.5),
-        ),
-        onTap: onTap,
-      ),
+    return ListTile(
+      leading: Icon(icon, color: theme.colorScheme.onSurface),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
+      subtitle: Text(subtitle, style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
+      trailing: trailing ?? const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+      onTap: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 }
 
-/// 设置开关
-class _SettingsSwitch extends StatelessWidget {
+class _SettingsSwitchTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
   final bool value;
   final ValueChanged<bool> onChanged;
 
-  const _SettingsSwitch({
+  const _SettingsSwitchTile({
     required this.title,
     required this.subtitle,
     required this.icon,
@@ -405,32 +358,31 @@ class _SettingsSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    return GlassmorphicContainer(
-      borderRadius: 16,
-      blur: 10,
-      opacity: 0.1,
-      child: ListTile(
-        leading: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: theme.colorScheme.primary, size: 20),
-        ),
-        title: Text(title),
-        subtitle: Text(
-          subtitle,
-          style: theme.textTheme.bodySmall,
-        ),
-        trailing: Switch(
-          value: value,
-          onChanged: onChanged,
-          activeColor: theme.colorScheme.primary,
-        ),
+    return ListTile(
+      leading: Icon(icon, color: theme.colorScheme.onSurface),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
+      subtitle: Text(subtitle, style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
+      trailing: Switch.adaptive(
+        value: value, 
+        onChanged: onChanged,
+        activeColor: AppTheme.appleMusicRed,
       ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    );
+  }
+}
+
+class _Divider extends StatelessWidget {
+  const _Divider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Divider(
+      height: 1, 
+      thickness: 1, 
+      indent: 56, 
+      endIndent: 16, 
+      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05)
     );
   }
 }

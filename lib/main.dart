@@ -7,21 +7,46 @@ import 'package:ether_music/core/keyboard_shortcuts.dart';
 import 'package:ether_music/core/tray_service.dart';
 import 'package:ether_music/core/local_storage_service.dart';
 
+import 'package:window_manager/window_manager.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // 初始化本地存储服务
   await LocalStorageService().init();
   
-  // 桌面端初始化系统托盘
+  // 桌面端配置
   final isDesktop = Platform.isMacOS || Platform.isWindows || Platform.isLinux;
   if (isDesktop) {
+    // 1. 系统托盘
     try {
       final trayService = TrayService();
       await trayService.init();
       trayService.listenToPlaybackChanges();
     } catch (e) {
       debugPrint('Error initializing tray service: $e');
+    }
+
+    // 2. 窗口管理 (特别是 Windows/Linux)
+    try {
+      await windowManager.ensureInitialized();
+      
+      const windowOptions = WindowOptions(
+        size: Size(1200, 800),
+        minimumSize: Size(800, 600),
+        center: true,
+        backgroundColor: Colors.transparent,
+        skipTaskbar: false,
+        titleBarStyle: TitleBarStyle.hidden, // 隐藏原生标题栏
+        title: 'Ether 以太音乐',
+      );
+      
+      await windowManager.waitUntilReadyToShow(windowOptions, () async {
+        await windowManager.show();
+        await windowManager.focus();
+      });
+    } catch (e) {
+      debugPrint('Error initializing window manager: $e');
     }
   }
   

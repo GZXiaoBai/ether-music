@@ -38,13 +38,16 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
 
   MediaItem _songToMediaItem(Song song) {
     return MediaItem(
-      id: song.id.toString(),
-      album: song.album?.name ?? '',
+      id: '${song.platform}_${song.id}',
+      album: song.album,
       title: song.name,
-      artist: song.artistNames,
+      artist: song.artist,
       artUri: song.coverUrl != null ? Uri.parse(song.coverUrl!) : null,
       duration: Duration(milliseconds: song.duration),
-      extras: {'songId': song.id},
+      extras: {
+        'songId': song.id,
+        'platform': song.platform,
+      },
     );
   }
 
@@ -56,17 +59,8 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
     // 更新当前媒体项
     mediaItem.add(_songToMediaItem(song));
     
-    // 获取歌曲 URL
-    final url = await _musicService.getSongUrl(
-      song.id,
-      songName: song.name,
-      artistName: song.artistNames,
-    );
-    if (url == null || url.isEmpty) {
-      // 无法获取 URL，跳到下一首
-      await skipToNext();
-      return;
-    }
+    // TuneHub API 直接返回 URL
+    final url = _musicService.getSongUrl(song);
     
     try {
       await _player.setUrl(url);

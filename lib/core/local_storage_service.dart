@@ -27,6 +27,7 @@ class LocalStorageService extends ChangeNotifier {
     _prefs = await SharedPreferences.getInstance();
     await _loadFavorites();
     await _loadSearchHistory();
+    await _loadCustomPlaylists();
   }
 
   // ==================== 收藏功能 ====================
@@ -52,7 +53,8 @@ class LocalStorageService extends ChangeNotifier {
 
   /// 添加收藏
   Future<void> addFavorite(Song song) async {
-    if (!isFavorite(song.id)) {
+    final key = '${song.platform}_${song.id}';
+    if (!_favorites.any((s) => '${s.platform}_${s.id}' == key)) {
       _favorites.insert(0, song);
       await _saveFavorites();
       notifyListeners();
@@ -60,16 +62,17 @@ class LocalStorageService extends ChangeNotifier {
   }
 
   /// 移除收藏
-  Future<void> removeFavorite(int songId) async {
-    _favorites.removeWhere((s) => s.id == songId);
+  Future<void> removeFavorite(String platform, String songId) async {
+    final key = '${platform}_$songId';
+    _favorites.removeWhere((s) => '${s.platform}_${s.id}' == key);
     await _saveFavorites();
     notifyListeners();
   }
 
   /// 切换收藏状态
   Future<bool> toggleFavorite(Song song) async {
-    if (isFavorite(song.id)) {
-      await removeFavorite(song.id);
+    if (isFavorite(song)) {
+      await removeFavorite(song.platform, song.id);
       return false;
     } else {
       await addFavorite(song);
@@ -78,8 +81,9 @@ class LocalStorageService extends ChangeNotifier {
   }
 
   /// 检查是否已收藏
-  bool isFavorite(int songId) {
-    return _favorites.any((s) => s.id == songId);
+  bool isFavorite(Song song) {
+    final key = '${song.platform}_${song.id}';
+    return _favorites.any((s) => '${s.platform}_${s.id}' == key);
   }
 
   // ==================== 搜索记录 ====================
@@ -151,7 +155,8 @@ class LocalStorageService extends ChangeNotifier {
   /// 添加到播放历史
   Future<void> addToPlayHistory(Song song) async {
     // 移除重复项
-    _playHistory.removeWhere((s) => s.id == song.id);
+    final key = '${song.platform}_${song.id}';
+    _playHistory.removeWhere((s) => '${s.platform}_${s.id}' == key);
     
     // 添加到开头
     _playHistory.insert(0, song);
@@ -170,6 +175,125 @@ class LocalStorageService extends ChangeNotifier {
   Future<void> clearPlayHistory() async {
     _playHistory.clear();
     await _prefs?.remove('playHistory');
+    notifyListeners();
+  }
+  // ==================== 自建歌单 ====================
+
+  List<Playlist> _customPlaylists = [];
+  List<Playlist> get customPlaylists => List.unmodifiable(_customPlaylists);
+  
+  Map<String, List<Song>> _playlistSongs = {};
+
+  /// 加载自建歌单
+  Future<void> _loadCustomPlaylists() async {
+    final json = _prefs?.getString('custom_playlists');
+    if (json != null) {
+      try {
+        final List<dynamic> list = jsonDecode(json);
+        _customPlaylists = list.map((e) => Playlist.fromJson(e)).toList();
+      } catch (e) {
+        _customPlaylists = [];
+      }
+    }
+    
+    // 加载每个歌单的歌曲
+    for (final playlist in _customPlaylists) {
+      final songJson = _prefs?.getString('playlist_songs_${playlist.id}');
+      if (songJson != null) {
+         try {
+           final List<dynamic> list = jsonDecode(songJson);
+           _playlistSongs[playlist.id] = list.map((e) => Song.fromJson(e)).toList();
+         } catch(e) {
+           _playlistSongs[playlist.id] = [];
+         }
+      } else {
+        _playlistSongs[playlist.id] = [];
+      }
+    }
+  }
+
+  /// 保存歌单列表
+  Future<void> _saveCustomPlaylists() async {
+    final json = jsonEncode(_customPlaylists.map((p) => {
+      'id': p.id,
+      'name': p.name,
+      'coverUrl': p.coverUrl,
+      'description': p.description,
+      'trackCount': p.trackCount,
+      'source': 'local',
+      'creator': {'nickname': '我'},
+    }).toList());
+    await _prefs?.setString('custom_playlists', json);
+  }
+
+  /// 保存特定歌单的歌曲
+  Future<void> _savePlaylistSongs(String playlistId) async {
+    final songs = _playlistSongs[playlistId] ?? [];
+    final json = jsonEncode(songs.map((s) => s.toJson()).toList());
+    await _prefs?.setString('playlist_songs_$playlistId', json);
+  }
+
+  /// 创建歌单
+  Future<String> createPlaylist(String name) async {
+    final id = 'local_${DateTime.now().millisecondsSinceEpoch}';
+    final playlist = Playlist(
+      id: id,
+      name: name,
+      source: 'local',
+      creatorName: '我',
+      trackCount: 0,
+      coverUrl: null, // 可以后续添加封面
+    );
+    
+    _customPlaylists.insert(0, playlist);
+    _playlistSongs[id] = [];
+    
+    await _saveCustomPlaylists();
+    notifyListeners();
+    return id;
+  }
+
+  /// 删除歌单
+  Future<void> deletePlaylist(String id) async {
+    _customPlaylists.removeWhere((p) => p.id == id);
+    _playlistSongs.remove(id);
+    await _prefs?.remove('playlist_songs_$id');
+    await _saveCustomPlaylists();
+    notifyListeners();
+  }
+  
+  /// 获取歌单歌曲
+  List<Song> getPlaylistSongs(String playlistId) {
+    return _playlistSongs[playlistId] ?? [];
+  }
+
+  /// 添加歌曲到歌单
+  Future<void> addSongToPlaylist(String playlistId, Song song) async {
+    if (!_playlistSongs.containsKey(playlistId)) return;
+    
+    final songs = _playlistSongs[playlistId]!;
+    // 检查重复
+    if (songs.any((s) => s.id == song.id && s.platform == song.platform)) return;
+    
+    songs.add(song);
+    
+    // 更新歌单 trackCount
+    final index = _customPlaylists.indexWhere((p) => p.id == playlistId);
+    if (index != -1) {
+      final old = _customPlaylists[index];
+      _customPlaylists[index] = Playlist(
+        id: old.id, 
+        name: old.name, 
+        source: old.source, 
+        coverUrl: song.coverUrl ?? old.coverUrl, // 使用第一首歌的封面
+        trackCount: songs.length,
+        creatorName: old.creatorName,
+        description: old.description
+      );
+    }
+    
+    await _savePlaylistSongs(playlistId);
+    await _saveCustomPlaylists();
     notifyListeners();
   }
 }

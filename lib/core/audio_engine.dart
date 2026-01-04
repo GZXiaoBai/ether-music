@@ -3,6 +3,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:ether_music/api/models/song.dart';
 import 'package:ether_music/api/music_service.dart';
+import 'package:ether_music/core/local_storage_service.dart';
 
 /// 播放模式
 enum PlayMode {
@@ -51,6 +52,7 @@ class AudioEngine {
   final ValueNotifier<Song?> currentSongNotifier = ValueNotifier(null);
   final ValueNotifier<List<Song>> queueNotifier = ValueNotifier([]);
   final ValueNotifier<PlayMode> playModeNotifier = ValueNotifier(PlayMode.sequence);
+  final ValueNotifier<String?> errorMessageNotifier = ValueNotifier(null);
 
   AudioEngine._internal() {
     _player = AudioPlayer();
@@ -90,8 +92,10 @@ class AudioEngine {
 
   /// 播放单首歌曲
   Future<void> play(Song song) async {
-    // 检查是否已在队列中
-    final existingIndex = _queue.indexWhere((s) => s.id == song.id);
+    // 检查是否已在队列中（使用 id 和 platform 匹配）
+    final existingIndex = _queue.indexWhere(
+      (s) => s.id == song.id && s.platform == song.platform
+    );
     if (existingIndex != -1) {
       await playAt(existingIndex);
       return;
@@ -104,7 +108,6 @@ class AudioEngine {
   }
 
   /// 播放队列中指定位置的歌曲
-  /// [skipOnFail] 如果为 true，播放失败时自动跳到下一首
   Future<void> playAt(int index, {bool skipOnFail = true}) async {
     if (index < 0 || index >= _queue.length) return;
 
@@ -113,40 +116,25 @@ class AudioEngine {
     currentSongNotifier.value = song;
 
     try {
-      // 获取歌曲 URL（会尝试多种音质级别）
-      debugPrint('正在获取歌曲 URL: ${song.name} (ID: ${song.id})');
-      final url = await _musicService.getSongUrl(
-        song.id,
-        songName: song.name,
-        artistName: song.artistNames,
-      );
+      // TuneHub API 直接返回可用的 URL
+      final url = _musicService.getSongUrl(song);
+      debugPrint('🎵 播放: ${song.name} - ${song.artist}');
+      debugPrint('📍 URL: $url');
       
-      if (url == null || url.isEmpty) {
-        debugPrint('⚠️ 无法获取歌曲 URL: ${song.name} - 可能是VIP歌曲或版权限制');
-        _onPlayFailed(song, '该歌曲暂时无法播放（版权限制）');
-        if (skipOnFail && _queue.length > 1) {
-          // 延迟 500ms 后播放下一首，避免太快跳过
-          await Future.delayed(const Duration(milliseconds: 500));
-          await _playNextAvailable();
-        }
-        return;
-      }
-
-      debugPrint('✅ 获取到 URL，开始播放: ${song.name}');
       await _player.setUrl(url);
       await _player.play();
+      
+      // 记录播放历史
+      LocalStorageService().addToPlayHistory(song);
     } catch (e) {
       debugPrint('❌ 播放失败: ${song.name} - $e');
       _onPlayFailed(song, '播放出错：$e');
       if (skipOnFail && _queue.length > 1) {
         await Future.delayed(const Duration(milliseconds: 500));
-        await _playNextAvailable();
+        await playNext();
       }
     }
   }
-
-  /// 播放失败回调
-  final ValueNotifier<String?> errorMessageNotifier = ValueNotifier(null);
   
   void _onPlayFailed(Song song, String message) {
     errorMessageNotifier.value = '${song.name}: $message';
@@ -156,47 +144,6 @@ class AudioEngine {
         errorMessageNotifier.value = null;
       }
     });
-  }
-
-  /// 尝试播放下一首可用的歌曲
-  Future<void> _playNextAvailable() async {
-    if (_queue.isEmpty) return;
-    
-    // 记录起始位置，避免无限循环
-    final startIndex = _currentIndex;
-    int attempts = 0;
-    final maxAttempts = _queue.length;
-    
-    while (attempts < maxAttempts) {
-      int nextIndex = (_currentIndex + 1) % _queue.length;
-      if (nextIndex == startIndex && attempts > 0) {
-        // 已经循环一圈，所有歌曲都无法播放
-        debugPrint('所有歌曲都无法播放');
-        errorMessageNotifier.value = '播放列表中的歌曲暂时都无法播放';
-        return;
-      }
-      
-      _currentIndex = nextIndex;
-      attempts++;
-      
-      final song = _queue[nextIndex];
-      currentSongNotifier.value = song;
-      
-      try {
-        final url = await _musicService.getSongUrl(
-          song.id,
-          songName: song.name,
-          artistName: song.artistNames,
-        );
-        if (url != null && url.isNotEmpty) {
-          await _player.setUrl(url);
-          await _player.play();
-          return; // 成功播放，退出
-        }
-      } catch (e) {
-        debugPrint('尝试播放 ${song.name} 失败: $e');
-      }
-    }
   }
 
   /// 暂停
@@ -292,8 +239,8 @@ class AudioEngine {
   /// 循环切换播放模式
   void togglePlayMode() {
     final modes = PlayMode.values;
-    final currentIndex = modes.indexOf(_playMode);
-    setPlayMode(modes[(currentIndex + 1) % modes.length]);
+    final currentModeIndex = modes.indexOf(_playMode);
+    setPlayMode(modes[(currentModeIndex + 1) % modes.length]);
   }
 
   /// 设置播放队列
@@ -314,7 +261,7 @@ class AudioEngine {
   }
 
   /// 添加到下一首播放
-  void playNext_add(Song song) {
+  void addNext(Song song) {
     final insertIndex = _currentIndex + 1;
     if (insertIndex >= _queue.length) {
       _queue.add(song);
@@ -362,5 +309,6 @@ class AudioEngine {
     currentSongNotifier.dispose();
     queueNotifier.dispose();
     playModeNotifier.dispose();
+    errorMessageNotifier.dispose();
   }
 }
