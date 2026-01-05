@@ -27,10 +27,12 @@ jobs:
         run: flutter build windows --release
 
       - name: Install Inno Setup
-        run: choco install innosetup
+        run: |
+          choco install innosetup --no-progress
+          echo "C:\Program Files (x86)\Inno Setup 6" >> $env:GITHUB_PATH
 
       - name: Compile Installer
-        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer/setup.iss"'
+        run: iscc "installer\setup.iss"
         
       - name: Upload Installer to Release
         uses: svenstaro/upload-release-action@v2
