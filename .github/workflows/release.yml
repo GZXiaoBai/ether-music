@@ -26,11 +26,11 @@ jobs:
       - name: Build Windows Release
         run: flutter build windows --release
 
-      - name: Setup Inno Setup
-        uses: minnowzhu/w_innosetup@v1
-        
+      - name: Install Inno Setup
+        run: choco install innosetup
+
       - name: Compile Installer
-        run: iscc "installer/setup.iss"
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer/setup.iss"'
         
       - name: Upload Installer to Release
         uses: svenstaro/upload-release-action@v2
