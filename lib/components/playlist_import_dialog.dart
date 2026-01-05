@@ -166,6 +166,104 @@ class _PlaylistImportDialogState extends State<PlaylistImportDialog> {
     }
   }
 
+  void _showTutorial(BuildContext context) {
+    final theme = Theme.of(context);
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: theme.colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.school_rounded, size: 28, color: AppTheme.appleMusicRed),
+                    const SizedBox(width: 12),
+                    Text('如何获取歌单链接', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                    const Spacer(),
+                    IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                
+                // 网易云音乐
+                _TutorialSection(
+                  icon: Icons.cloud_outlined,
+                  color: const Color(0xFFE60026),
+                  title: '网易云音乐',
+                  steps: const [
+                    '1. 打开网易云音乐 App 或网页版',
+                    '2. 进入想要导入的歌单',
+                    '3. 点击「分享」按钮 → 复制链接',
+                    '4. 将链接粘贴到输入框中',
+                  ],
+                  example: 'music.163.com/playlist?id=123456',
+                ),
+                const SizedBox(height: 16),
+                
+                // QQ 音乐
+                _TutorialSection(
+                  icon: Icons.music_note_rounded,
+                  color: const Color(0xFF31C27C),
+                  title: 'QQ 音乐',
+                  steps: const [
+                    '1. 打开 QQ 音乐 App',
+                    '2. 进入歌单详情页',
+                    '3. 点击右上角「...」→「分享」→ 复制链接',
+                    '4. 将链接粘贴到输入框中',
+                  ],
+                  example: 'y.qq.com/n/ryqq/playlist/123456',
+                ),
+                const SizedBox(height: 16),
+                
+                // 酷我音乐
+                _TutorialSection(
+                  icon: Icons.library_music_rounded,
+                  color: const Color(0xFFFF6600),
+                  title: '酷我音乐',
+                  steps: const [
+                    '1. 打开酷我音乐网页版',
+                    '2. 找到歌单并进入',
+                    '3. 复制浏览器地址栏中的链接',
+                    '4. 将链接粘贴到输入框中',
+                  ],
+                  example: 'kuwo.cn/playlist_detail/123456',
+                ),
+                
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.lightbulb_outline, color: Colors.blue, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '💡 提示：也可以直接输入歌单 ID（纯数字），默认解析为网易云音乐歌单',
+                          style: TextStyle(color: Colors.blue.shade700, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -195,9 +293,23 @@ class _PlaylistImportDialogState extends State<PlaylistImportDialog> {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                '支持导入网易云音乐、QQ 音乐、酷我音乐的歌单',
-                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+              Row(
+                children: [
+                  Text(
+                    '支持导入网易云音乐、QQ 音乐、酷我音乐的歌单',
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () => _showTutorial(context),
+                    icon: const Icon(Icons.help_outline, size: 16),
+                    label: const Text('如何获取链接?'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.appleMusicRed,
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
               
@@ -331,4 +443,66 @@ class _ParsedPlaylist {
   final String id;
   
   _ParsedPlaylist({required this.source, required this.id});
+}
+
+class _TutorialSection extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final List<String> steps;
+  final String example;
+
+  const _TutorialSection({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.steps,
+    required this.example,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...steps.map((step) => Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 4),
+            child: Text(step, style: theme.textTheme.bodySmall),
+          )),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              example,
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 11,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
