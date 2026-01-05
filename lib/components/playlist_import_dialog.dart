@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:dio/dio.dart';
 import 'package:ether_music/api/music_service.dart';
 import 'package:ether_music/api/models/song.dart';
 import 'package:ether_music/core/local_storage_service.dart';
@@ -30,8 +31,32 @@ class _PlaylistImportDialogState extends State<PlaylistImportDialog> {
     super.dispose();
   }
 
-  /// 解析歌单链接
-  _ParsedPlaylist? _parsePlaylistUrl(String url) {
+  /// 解析歌单链接 (支持短链接跳转)
+  Future<_ParsedPlaylist?> _parsePlaylistUrl(String url) async {
+    // 先检查是否是 QQ 音乐短链接，需要跟随重定向
+    if (url.contains('c6.y.qq.com') || url.contains('c.y.qq.com') || url.contains('i.y.qq.com/n2/m/share')) {
+      try {
+        final dio = Dio();
+        dio.options.followRedirects = false;
+        dio.options.validateStatus = (status) => status != null && status < 400;
+        
+        // 尝试获取重定向后的真实 URL
+        final response = await dio.head(url);
+        final redirectUrl = response.headers['location']?.first;
+        if (redirectUrl != null) {
+          url = redirectUrl;
+        }
+      } catch (e) {
+        // 如果是重定向错误，从 headers 获取 location
+        if (e is DioException && e.response?.statusCode == 302) {
+          final redirectUrl = e.response?.headers['location']?.first;
+          if (redirectUrl != null) {
+            url = redirectUrl;
+          }
+        }
+      }
+    }
+    
     // 网易云音乐
     // https://music.163.com/#/playlist?id=123456
     // https://music.163.com/playlist/123456
@@ -51,9 +76,12 @@ class _PlaylistImportDialogState extends State<PlaylistImportDialog> {
     // QQ 音乐
     // https://y.qq.com/n/ryqq/playlist/123456789
     // https://i.y.qq.com/n2/m/share/details/taoge.html?id=123456789
+    // disstid 参数也是歌单 ID
     final qqRegexes = [
       RegExp(r'y\.qq\.com.*playlist[/=](\d+)'),
       RegExp(r'y\.qq\.com.*taoge.*[?&]id=(\d+)'),
+      RegExp(r'y\.qq\.com.*disstid=(\d+)'),
+      RegExp(r'qq\.com.*[?&]id=(\d+)'),
     ];
     for (final regex in qqRegexes) {
       final match = regex.firstMatch(url);
@@ -90,16 +118,23 @@ class _PlaylistImportDialogState extends State<PlaylistImportDialog> {
       return;
     }
 
-    final parsed = _parsePlaylistUrl(url);
-    if (parsed == null) {
-      setState(() => _errorMessage = '无法识别的链接格式，请检查输入');
-      return;
-    }
-
     setState(() {
       _isLoading = true;
       _errorMessage = null;
       _previewSongs = null;
+      _parsedInfo = null;
+    });
+
+    final parsed = await _parsePlaylistUrl(url);
+    if (parsed == null) {
+      setState(() {
+        _errorMessage = '无法识别的链接格式，请检查输入';
+        _isLoading = false;
+      });
+      return;
+    }
+
+    setState(() {
       _parsedInfo = parsed;
     });
 
