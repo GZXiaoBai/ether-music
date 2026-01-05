@@ -50,10 +50,44 @@ class DownloadService extends ChangeNotifier {
       t.status == DownloadStatus.downloading
   ).toList();
 
-  /// 获取下载目录
+  /// 获取下载目录 (跨平台适配)
   Future<Directory> get downloadDirectory async {
-    final appDir = await getApplicationDocumentsDirectory();
-    final musicDir = Directory('${appDir.path}/Downloads');
+    Directory musicDir;
+    
+    if (Platform.isAndroid) {
+      // Android: 使用外部存储的 Music 文件夹
+      // 需要 WRITE_EXTERNAL_STORAGE 权限 (Android 10+ 使用 Scoped Storage)
+      try {
+        final extDir = await getExternalStorageDirectory();
+        if (extDir != null) {
+          // /storage/emulated/0/Android/data/com.example.ether_music/files/Music
+          musicDir = Directory('${extDir.path}/Music');
+        } else {
+          final appDir = await getApplicationDocumentsDirectory();
+          musicDir = Directory('${appDir.path}/Music');
+        }
+      } catch (e) {
+        final appDir = await getApplicationDocumentsDirectory();
+        musicDir = Directory('${appDir.path}/Music');
+      }
+    } else if (Platform.isWindows) {
+      // Windows: 使用用户的音乐文件夹
+      final userProfile = Platform.environment['USERPROFILE'];
+      if (userProfile != null) {
+        musicDir = Directory('$userProfile\\Music\\EtherMusic');
+      } else {
+        final appDir = await getApplicationDocumentsDirectory();
+        musicDir = Directory('${appDir.path}\\Music');
+      }
+    } else if (Platform.isLinux) {
+      // Linux: 使用 XDG_MUSIC_DIR 或 ~/Music
+      final home = Platform.environment['HOME'];
+      musicDir = Directory('$home/Music/EtherMusic');
+    } else {
+      // macOS / iOS: 使用应用文档目录
+      final appDir = await getApplicationDocumentsDirectory();
+      musicDir = Directory('${appDir.path}/Music');
+    }
     
     if (!await musicDir.exists()) {
       await musicDir.create(recursive: true);
