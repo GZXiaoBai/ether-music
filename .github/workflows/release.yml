@@ -27,12 +27,18 @@ jobs:
         run: flutter build windows --release
 
       - name: Install Inno Setup
-        run: |
-          choco install innosetup --no-progress
-          echo "C:\Program Files (x86)\Inno Setup 6" >> $env:GITHUB_PATH
+        run: choco install innosetup -y --no-progress
 
       - name: Compile Installer
-        run: iscc "installer\setup.iss"
+        shell: powershell
+        run: |
+          $acc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (Test-Path $acc) {
+            & $acc "installer\setup.iss"
+          } else {
+            echo "Standard path not found, trying PATH..."
+            iscc "installer\setup.iss"
+          }
         
       - name: Upload Installer to Release
         uses: svenstaro/upload-release-action@v2
