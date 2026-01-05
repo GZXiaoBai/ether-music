@@ -185,8 +185,18 @@ class MusicService {
         throw Exception('获取歌单失败: ${response['message']}');
       }
 
+      // API 返回的 source 字段优先，否则使用请求参数
+      final actualSource = response['data']?['source'] as String? ?? source;
       final songs = response['data']?['list'] as List? ?? [];
-      return songs.map((s) => Song.fromTuneHub(s as Map<String, dynamic>)).toList();
+      
+      return songs.map((s) {
+        final json = s as Map<String, dynamic>;
+        // 确保每首歌都有正确的 platform
+        if (!json.containsKey('platform') || json['platform'] == null) {
+          json['platform'] = actualSource;
+        }
+        return Song.fromTuneHub(json);
+      }).toList();
     } catch (e) {
       debugPrint('获取歌单歌曲失败: $e');
       rethrow;
