@@ -1,12 +1,27 @@
 pluginManagement {
-    val flutterSdkPath =
-        run {
-            val properties = java.util.Properties()
-            file("local.properties").inputStream().use { properties.load(it) }
-            val flutterSdkPath = properties.getProperty("flutter.sdk")
-            require(flutterSdkPath != null) { "flutter.sdk not set in local.properties" }
-            flutterSdkPath
+    val flutterSdkPath = run {
+        val properties = java.util.Properties()
+        val localPropertiesFile = file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.inputStream().use { properties.load(it) }
         }
+        val flutterSdkPath = properties.getProperty("flutter.sdk")
+            ?: System.getenv("FLUTTER_HOME")
+            ?: run {
+                val process = ProcessBuilder("which", "flutter").start()
+                val flutterPath = process.inputStream.bufferedReader().readLine()
+                if (flutterPath != null && flutterPath.isNotBlank()) {
+                    // flutter binary is usually at flutter/bin/flutter, we need flutter/
+                    java.io.File(flutterPath).parentFile?.parentFile?.absolutePath
+                } else {
+                    null
+                }
+            }
+        require(flutterSdkPath != null) { 
+            "flutter.sdk not set in local.properties and FLUTTER_HOME env var is not set" 
+        }
+        flutterSdkPath
+    }
 
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
