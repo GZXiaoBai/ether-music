@@ -1,7 +1,7 @@
 name: ether_music
 description: "Ether 以太音乐 - 一款集美学与功能于一体的开源音乐播放器"
 publish_to: 'none'
-version: 2.0.0+1
+version: 2.1.0+2
 
 environment:
   sdk: ^3.10.3
