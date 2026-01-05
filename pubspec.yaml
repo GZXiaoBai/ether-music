@@ -30,6 +30,7 @@ dependencies:
 
   # 音频播放
   just_audio: ^0.9.46
+  just_audio_windows: ^0.2.2  # Windows 平台支持
   audio_service: ^0.18.18
   audio_session: ^0.1.25
 

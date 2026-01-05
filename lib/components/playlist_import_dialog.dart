@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:ether_music/api/music_service.dart';
 import 'package:ether_music/api/models/song.dart';
@@ -34,19 +35,24 @@ class _PlaylistImportDialogState extends State<PlaylistImportDialog> {
   /// 解析歌单链接 (支持短链接跳转)
   Future<_ParsedPlaylist?> _parsePlaylistUrl(String url) async {
     // 先检查是否是 QQ 音乐短链接，需要跟随重定向
-    if (url.contains('c6.y.qq.com') || url.contains('c.y.qq.com') || url.contains('i.y.qq.com/n2/m/share')) {
+    if (url.contains('c6.y.qq.com') || url.contains('c.y.qq.com')) {
       try {
         final dio = Dio();
         dio.options.followRedirects = false;
-        dio.options.validateStatus = (status) => status != null && status < 400;
+        // 允许 302 重定向响应
+        dio.options.validateStatus = (status) => status != null && status < 400 || status == 302;
         
         // 尝试获取重定向后的真实 URL
-        final response = await dio.head(url);
-        final redirectUrl = response.headers['location']?.first;
-        if (redirectUrl != null) {
-          url = redirectUrl;
+        final response = await dio.get(url);
+        if (response.statusCode == 302) {
+          final redirectUrl = response.headers['location']?.first;
+          if (redirectUrl != null && redirectUrl.isNotEmpty) {
+            debugPrint('🔗 QQ短链接重定向: $redirectUrl');
+            url = redirectUrl;
+          }
         }
       } catch (e) {
+        debugPrint('❌ 解析QQ短链接失败: $e');
         // 如果是重定向错误，从 headers 获取 location
         if (e is DioException && e.response?.statusCode == 302) {
           final redirectUrl = e.response?.headers['location']?.first;
