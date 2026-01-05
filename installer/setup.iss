@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Ether Music"
-#define MyAppVersion "2.1.3"
+#define MyAppVersion "2.1.4"
 #define MyAppPublisher "GZXiaoBai"
 #define MyAppURL "https://github.com/GZXiaoBai/ether-music"
 #define MyAppExeName "ether_music.exe"
