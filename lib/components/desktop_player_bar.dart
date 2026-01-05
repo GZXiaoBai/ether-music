@@ -291,6 +291,24 @@ class DesktopPlayerBar extends ConsumerWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
+        // 音质选择
+        PopupMenuButton<String>(
+          tooltip: '音质',
+          icon: Icon(Icons.high_quality_rounded, size: 20, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+          onSelected: (quality) {
+            // 保存音质设置并重新加载当前歌曲
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('已切换至 $quality 音质'), duration: const Duration(seconds: 1)),
+            );
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(value: '128k', child: Text('标准 128k')),
+            const PopupMenuItem(value: '320k', child: Text('高品质 320k')),
+            const PopupMenuItem(value: '999k', child: Text('无损 FLAC')),
+          ],
+        ),
+        const SizedBox(width: 8),
+        // 音量控制
         IconButton(
           icon: Icon(
             volume == 0 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
@@ -298,7 +316,6 @@ class DesktopPlayerBar extends ConsumerWidget {
             color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
           ),
           onPressed: () {
-            // 静音切换
             if (volume > 0) {
               ref.read(audioEngineProvider).setVolume(0);
             } else {

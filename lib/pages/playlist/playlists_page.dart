@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ether_music/theme/app_theme.dart';
 import 'package:ether_music/core/local_storage_service.dart';
 import 'package:ether_music/api/models/song.dart';
+import 'package:ether_music/components/playlist_import_dialog.dart';
 
 class PlaylistsPage extends ConsumerStatefulWidget {
   const PlaylistsPage({super.key});
@@ -87,15 +88,36 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  ElevatedButton.icon(
-                    onPressed: _showCreatePlaylistDialog,
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('新建歌单'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.appleMusicRed,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    ),
+                  Row(
+                    children: [
+                      TextButton.icon(
+                        onPressed: () async {
+                          final result = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => const PlaylistImportDialog(),
+                          );
+                          if (result == true && mounted) {
+                            setState(() {});
+                          }
+                        },
+                        icon: const Icon(Icons.cloud_download_rounded, size: 18),
+                        label: const Text('导入歌单'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.appleMusicRed,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: _showCreatePlaylistDialog,
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: const Text('新建歌单'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.appleMusicRed,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

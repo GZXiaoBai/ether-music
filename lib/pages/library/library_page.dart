@@ -9,7 +9,6 @@ import 'package:ether_music/state/player_state.dart';
 import 'package:ether_music/theme/app_theme.dart';
 import 'package:ether_music/api/models/song.dart';
 import 'package:ether_music/components/desktop_song_row.dart';
-import 'package:ether_music/components/playlist_import_dialog.dart';
 
 class LibraryPage extends ConsumerStatefulWidget {
   const LibraryPage({super.key});
@@ -74,32 +73,11 @@ class _LibraryPageState extends ConsumerState<LibraryPage>
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(32, 24, 32, 16),
-              child: Row(
-                children: [
-                  Text(
-                    '我的音乐',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                  TextButton.icon(
-                    onPressed: () async {
-                      final result = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => const PlaylistImportDialog(),
-                      );
-                      if (result == true && mounted) {
-                        setState(() {}); // 刷新列表
-                      }
-                    },
-                    icon: const Icon(Icons.playlist_add, size: 20),
-                    label: const Text('导入歌单'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppTheme.appleMusicRed,
-                    ),
-                  ),
-                ],
+              child: Text(
+                '我的音乐',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
