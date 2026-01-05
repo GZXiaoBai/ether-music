@@ -119,6 +119,7 @@ class AudioEngine {
       // TuneHub API 直接返回可用的 URL
       final url = _musicService.getSongUrl(song);
       debugPrint('🎵 播放: ${song.name} - ${song.artist}');
+      debugPrint('🎵 平台: ${song.platform}, ID: ${song.id}');
       debugPrint('📍 URL: $url');
       
       await _player.setUrl(url);

@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ether_music/api/models/song.dart';
 import 'package:ether_music/api/music_service.dart';
@@ -75,6 +76,56 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
         });
       }
     }
+  }
+
+  void _handleMenuAction(BuildContext context, String action) {
+    switch (action) {
+      case 'shuffle':
+        if (_songs.isNotEmpty) {
+          final shuffled = List<Song>.from(_songs)..shuffle();
+          ref.read(audioEngineProvider).setQueue(shuffled, startIndex: 0);
+        }
+        break;
+      case 'download':
+        for (final song in _songs) {
+          DownloadService().download(song);
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('开始下载 ${_songs.length} 首歌曲')),
+        );
+        break;
+      case 'delete':
+        _showDeleteConfirmDialog(context);
+        break;
+    }
+  }
+
+  void _showDeleteConfirmDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除歌单'),
+        content: Text('确定要删除歌单「${widget.playlistName ?? ''}」吗？此操作不可恢复。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              LocalStorageService().deletePlaylist(widget.playlistId);
+              context.pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('歌单已删除')),
+              );
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -202,12 +253,44 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
                               ),
                             ),
                             const SizedBox(width: 16),
-                             IconButton(
-                              onPressed: () {},
-                              icon: const Icon(Icons.more_horiz_rounded),
-                              style: IconButton.styleFrom(
-                                backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                              ),
+                            PopupMenuButton<String>(
+                              icon: Icon(Icons.more_horiz_rounded, color: theme.colorScheme.onSurface),
+                              onSelected: (value) => _handleMenuAction(context, value),
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: 'shuffle',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.shuffle_rounded, size: 20),
+                                      SizedBox(width: 12),
+                                      Text('随机播放'),
+                                    ],
+                                  ),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'download',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.download_rounded, size: 20),
+                                      SizedBox(width: 12),
+                                      Text('下载全部'),
+                                    ],
+                                  ),
+                                ),
+                                if (widget.source == 'local') ...[
+                                  const PopupMenuDivider(),
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.delete_rounded, size: 20, color: Colors.red),
+                                        SizedBox(width: 12),
+                                        Text('删除歌单', style: TextStyle(color: Colors.red)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ],
                         ),
