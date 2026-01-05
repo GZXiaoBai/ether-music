@@ -1,0 +1,42 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    name: Build Windows Installer
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Build Windows Release
+        run: flutter build windows --release
+
+      - name: Setup Inno Setup
+        uses: minnowzhu/w_innosetup@v1
+        
+      - name: Compile Installer
+        run: iscc "installer/setup.iss"
+        
+      - name: Upload Installer to Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: installer_output/EtherMusic_Setup_*.exe
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
