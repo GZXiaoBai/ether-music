@@ -44,6 +44,12 @@ final durationProvider = StreamProvider<Duration?>((ref) {
   return engine.durationStream;
 });
 
+/// 音量 Provider
+final volumeProvider = StreamProvider<double>((ref) {
+  final engine = ref.watch(audioEngineProvider);
+  return engine.volumeStream;
+});
+
 /// ValueNotifier 扩展：转换为 Stream
 extension ValueNotifierStream<T> on ValueNotifier<T> {
   Stream<T> toStream() async* {

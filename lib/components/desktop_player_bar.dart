@@ -285,29 +285,44 @@ class DesktopPlayerBar extends ConsumerWidget {
   }
 
   Widget _buildExtraControls(BuildContext context, WidgetRef ref) {
-    // 简化版音量控制
+    final volume = ref.watch(volumeProvider).value ?? 1.0;
+    final theme = Theme.of(context);
+    
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        Icon(Icons.volume_up_rounded, size: 20, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
-        const SizedBox(width: 8),
+        IconButton(
+          icon: Icon(
+            volume == 0 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+            size: 20,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+          onPressed: () {
+            // 静音切换
+            if (volume > 0) {
+              ref.read(audioEngineProvider).setVolume(0);
+            } else {
+              ref.read(audioEngineProvider).setVolume(1.0);
+            }
+          },
+          tooltip: volume > 0 ? '静音' : '取消静音',
+        ),
         SizedBox(
-          width: 80, // 小滑块
+          width: 80,
           child: SliderTheme(
-            data: Theme.of(context).sliderTheme.copyWith(
+            data: theme.sliderTheme.copyWith(
               trackHeight: 3,
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
             ),
             child: Slider(
-              value: 0.8, // TODO: Bind volume
-              onChanged: (v) {},
+              value: volume,
+              onChanged: (v) => ref.read(audioEngineProvider).setVolume(v),
             ),
           ),
         ),
         const SizedBox(width: 16),
         IconButton(
           onPressed: () {
-            // TODO: Implement Playlist Drawer
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('播放队列功能开发中...'), duration: Duration(seconds: 1)),
             );

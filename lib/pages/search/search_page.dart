@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ether_music/state/app_state.dart';
 import 'package:ether_music/state/player_state.dart';
@@ -307,16 +308,29 @@ class _DesktopSearchResultRowState extends ConsumerState<_DesktopSearchResultRow
                 ),
               ),
               
-              // 歌手
+              // 歌手 (可点击)
               Expanded(
                 flex: 3,
-                child: Text(
-                  widget.song.artist,
-                  style: TextStyle(
-                    color: isActive ? AppTheme.appleMusicRed.withValues(alpha: 0.8) : theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                    fontSize: 13,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: () {
+                      context.push(
+                        '/artist/${Uri.encodeComponent(widget.song.artist)}',
+                        extra: {'coverUrl': widget.song.coverUrl},
+                      );
+                    },
+                    child: Text(
+                      widget.song.artist,
+                      style: TextStyle(
+                        color: isActive ? AppTheme.appleMusicRed.withValues(alpha: 0.8) : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                        fontSize: 13,
+                        decoration: TextDecoration.underline,
+                        decorationColor: theme.colorScheme.onSurface.withValues(alpha: 0.2),
+                      ),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
                 ),
               ),
               
