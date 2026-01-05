@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -20,17 +21,56 @@ class SearchPage extends ConsumerStatefulWidget {
 
 class _SearchPageState extends ConsumerState<SearchPage> {
   final LocalStorageService _storage = LocalStorageService();
+  final TextEditingController _mobileSearchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _mobileSearchController.dispose();
+    super.dispose();
+  }
+
+  void _handleMobileSearch(String value) {
+    if (value.trim().isNotEmpty) {
+      ref.read(searchResultsProvider.notifier).search(value);
+      _storage.addSearchHistory(value);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final searchResults = ref.watch(searchResultsProvider);
     final currentSong = ref.watch(currentSongProvider).valueOrNull;
+    final isMobile = !Platform.isMacOS && !Platform.isWindows && !Platform.isLinux;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: CustomScrollView(
         slivers: [
+          // 移动端搜索框
+          if (isMobile)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: TextField(
+                  controller: _mobileSearchController,
+                  decoration: InputDecoration(
+                    hintText: '搜索音乐、歌手...',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: theme.colorScheme.surfaceContainerHighest,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: _handleMobileSearch,
+                ),
+              ),
+            ),
+          
           // 搜索结果
           searchResults.when(
             loading: () => const SliverFillRemaining(
