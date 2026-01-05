@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -124,8 +125,10 @@ class AppTheme {
       iconTheme: IconThemeData(color: appleMusicRed),
     ),
     
-    // 文字主题
-    textTheme: darkTextTheme,
+    // 文字主题 (Win: 微软雅黑)
+    textTheme: Platform.isWindows 
+        ? darkTextTheme.apply(fontFamilyFallback: ['Microsoft YaHei', 'SimHei', 'Segoe UI'])
+        : darkTextTheme,
     iconTheme: const IconThemeData(
       color: darkTextPrimary,
       size: 24,
@@ -255,7 +258,9 @@ class AppTheme {
     ),
     
     // 文字主题 - SF Pro 风格
-    textTheme: const TextTheme(
+    textTheme: Platform.isWindows 
+        ? lightTextTheme.apply(fontFamilyFallback: ['Microsoft YaHei', 'SimHei', 'Segoe UI'])
+        : lightTextTheme,
       displayLarge: TextStyle(
         fontSize: 34,
         fontWeight: FontWeight.w700,

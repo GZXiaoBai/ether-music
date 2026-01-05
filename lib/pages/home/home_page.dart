@@ -10,11 +10,26 @@ import 'package:ether_music/api/models/song.dart';
 import 'package:ether_music/core/audio_engine.dart';
 import 'package:ether_music/components/desktop_song_row.dart';
 
-class HomePage extends ConsumerWidget {
+import 'package:ether_music/core/update_service.dart';
+
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService().checkUpdate(context, silent: true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
     return Scaffold(
